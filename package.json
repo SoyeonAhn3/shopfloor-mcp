@@ -1,0 +1,31 @@
+{
+  "name": "shopfloor-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic shop-floor dataset and evaluation foundation",
+  "engines": {
+    "node": "24.14.0",
+    "npm": ">=11 <12"
+  },
+  "scripts": {
+    "generate": "tsx src/generator/index.ts",
+    "validate": "tsx src/validator/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

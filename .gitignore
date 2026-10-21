@@ -1,0 +1,54 @@
+# 시크릿/환경변수 (절대 커밋 금지)
+.env
+.env.*
+!.env.example
+*.env
+api.env
+.claude/api.env
+!.env.sample
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
+
+# Claude Code 로컬 설정
+.claude/settings.local.json
+
+# 개발 로그 (dev-log 기록)
+logs/
+
+# Node.js / TypeScript
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# SQLite (생성기로 다시 만들 수 있는 DB와 실행 중 임시 파일)
+# DB·정답표·검증 결과·설정 스냅샷은 한 생성본이므로 함께 제외
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# 시스템 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터
+.vscode/
+*.swp
+*.swo
