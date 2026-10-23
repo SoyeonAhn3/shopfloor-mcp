@@ -4,7 +4,7 @@
 
 > MCP server that lets Claude answer shop-floor production questions with server-computed numbers and traceable evidence — and register issues only after a human confirms.
 
-**Status: Phases 1–3 complete.** The SQLite dataset, independent answer key, 17 validation rules, 30 frozen evaluation scenarios, 10 development scenarios and core server logic are implemented. Core includes general periods, calculations, analysis, auditing and guarded draft/confirm transactions. The default dataset contains 69,835 rows in 11 tables. MCP integration starts in Phase 4; no AI evaluation has run yet.
+**Status: Phases 1–4 implemented; Phase 5 evaluation tooling implemented, human review pending.** The local MCP server provides **4 grouped tools by default**, 4 resources and 2 prompts, with a 10-tool comparison option. It reuses validated calculations, general periods, auditing and guarded drafts on a runtime SQLite copy. The default dataset has 69,835 rows in 11 tables. Live Claude evaluation records and readable reports are available under `eval/`. Desktop UI acceptance remains a separate manual check.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Built as a portfolio project. Earlier projects embedded AI inside an app; this o
 
 ## Operation Flow
 
-Planned flow:
+Implemented text flow (the human confirmation UI is planned for Phase 7):
 
 ```
 User asks in Claude Desktop ("Why is Line 4 below target?")
@@ -42,11 +42,11 @@ User asks in Claude Desktop ("Why is Line 4 below target?")
 
 ## Technology Stack
 
-Phase 1 uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, and Vitest. MCP, client integration, and the replay page below are planned for later phases.
+The server uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest, and the pinned MCP TypeScript SDK v2. Client setup instructions are available; the replay page and confirmation UI are planned for later phases.
 
 | Technology | Role | Why |
 |---|---|---|
-| TypeScript | Data generator and validator; future MCP server | One language for the dataset tools, server, and future HTML/JS confirmation form |
+| TypeScript | Data generator, validator, core and MCP server | One language for the dataset tools, server, and future HTML/JS confirmation form |
 | SQLite | Production data, issues, audit log | Single file with no DB server; a fixed seed reproduces production values, while each generation is identified separately |
 | MCP (Model Context Protocol) | Connection between Claude and the server | Claude Desktop handles the chat and tool-call loop; the same server can be reused by other MCP clients |
 | Claude Desktop | Client (chat, tool selection, answers) | No custom chat frontend to build or pay API costs for |
@@ -55,7 +55,7 @@ Phase 1 uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, and Vi
 
 ## AI Components
 
-The server calculations and guards below are implemented in Phase 3. AI/MCP integration is planned for Phase 4; the current code does not call an AI service.
+Phase 3 implements the calculations and guards; Phase 4 exposes them through MCP. The server does not call an AI service. Claude or another MCP client supplies the model and chooses tool calls.
 
 ### Who does what
 
@@ -113,7 +113,7 @@ Each generation receives a new `dataset_version` and actual creation time. A DB 
 
 Edit [config/generator.config.json](config/generator.config.json) to change generation settings, or pass `--config path` to `generate`. Validation defaults to the snapshot beside the DB, so source-config changes do not change how an older generation is validated. Generated bundles are git-ignored and should be regenerated together.
 
-`npm run check` runs type checking, 114 tests in nine files, and the build. All passed on 2026-10-23. Tests cover independent event/weekly answers, general periods and leap dates, six data states, exact loss arithmetic, permissions, evidence, atomic rollback, concurrent confirmation, dataset identity and freeze integrity. Core tests copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
+`npm run check` runs type checking, **187 tests in 16 files**, and the build. The 30 Phase 5 tests cover the model/tool loop, limits, grading units and checkpoints, immutable-source stdio runs, DB changes and exact-record human reviews. MCP tests cover discovery, grouped/fine parity, periods, permissions/privacy and runtime-copy protection. Tests never load `.env` or make paid API calls. They copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
@@ -128,7 +128,7 @@ npm run scenarios:freeze -- --dataset-dir data/phase2 --reason "Bind a newly gen
 npm run scenarios:check
 ```
 
-To retain the original identity, use a matching bundle copy with `npm run scenarios:check -- --dataset-dir path/to/copy`. An existing lock cannot be overwritten without a reason. See [Phase 2](Phase/Phase2_EvaluationScenarios.md) for hash and dataset-binding details. Claude Desktop connection instructions will be added in Phase 4.
+To retain the original identity, use a matching bundle copy with `npm run scenarios:check -- --dataset-dir path/to/copy`. An existing lock cannot be overwritten without a reason. See [Phase 2](Phase/Phase2_EvaluationScenarios.md) for hash and dataset-binding details, and [MCP setup](docs/MCP_SETUP.md) for Claude Desktop/Code connection instructions.
 
 Try the implemented core without an AI connection. The command makes a temporary DB copy, returns audited results and removes the copy afterward:
 
@@ -139,6 +139,34 @@ npm run core:demo -- --period '{"kind":"week_day","weeksAgo":1,"weekday":3}'
 ```
 
 The default is last calendar month from `data/phase2/production.db`; `--db` selects another source. Month, trailing days/weeks/months, completed calendar weeks, relative weekdays and explicit dates/ranges are supported. `--compare-to` takes another period JSON. Missing observations remain flagged and are excluded from covered totals/targets. See [Phase 3](Phase/Phase3_CoreLogic.md) for period semantics and the public TypeScript API.
+
+### Run the MCP server
+
+After building, copy a generated DB and print client settings with absolute paths:
+
+```powershell
+npm run db:copy -- --from data/production.db --to data/run/phase4-production.db
+npm run --silent mcp:config -- --db data/run/phase4-production.db --role viewer --user demo
+npm run mcp:demo -- --db data/production.db
+```
+
+The demo starts the built stdio server, discovers tools/resources/prompts and queries D01 (yesterday's L5 output) without a model. Default `coarse` exposes `get_line_info`, `query_production`, `analyze_production`, and `preview_issue`; `--toolset fine` selects ten tools. Existing DBs are never overwritten; preserve the adjacent `.runtime.json` marker. See [Phase 4](Phase/Phase4_McpServer.md) for modes, tests and remaining manual client checks.
+
+### Live AI evaluation (Phase 5)
+
+Put `ANTHROPIC_API_KEY` in the ignored `.env`; `.env.example` lists the supported settings without credentials. Preserve an existing `.env`. Evaluation calls are billed; the CLI counts tokens before each completion and applies a configurable estimated-cost ceiling.
+
+```bash
+npm run eval -- --set dev --toolset coarse --ids D01 --max-cost-usd 0.25
+npm run eval:review -- --run <runId>
+npm run eval:summary
+```
+
+Read [eval/summary.md](eval/summary.md) for the overview. Review Markdown files show the question, actual tool arguments, server results, final answer, independent expected values and automated checks. Adjacent JSON checklists start pending; final accuracy is not published until human review is complete. [Phase 5](Phase/Phase5_Evaluation.md) documents full dev runs, description freezing, the 30-question comparison, costs and current results. Only questions and public MCP context are sent to Claude; the answer key stays in the grader.
+
+### Planned model comparison
+
+**Planned Phase 5 extension:** compare `claude-opus-5-5` with the existing `claude-sonnet-5-5` baseline using the same four coarse tools, frozen questions and dataset. Evaluate human-reviewed quality, calls, latency, tokens and cost. Opus has not been run; model-specific dev validation/freezing, verified prices and a cross-model report are pending. The current summary compares tool sets within the same model. See [Phase 5](Phase/Phase5_Evaluation.md) for the experiment and model-retirement migration plan. Retirement monitoring and automatic fallback are not implemented.
 
 ## Project Structure
 
@@ -153,8 +181,8 @@ shopfloor-mcp/
 │   ├── Phase1_Foundation.md           # ✅ Completed
 │   ├── Phase2_EvaluationScenarios.md  # ✅ Completed
 │   ├── Phase3_CoreLogic.md            # ✅ Completed
-│   ├── Phase4_McpServer.md            # 🔲 Not started
-│   ├── Phase5_Evaluation.md           # 🔲 Not started
+│   ├── Phase4_McpServer.md            # ✅ Implemented; manual client check pending
+│   ├── Phase5_Evaluation.md           # 🚧 Implemented; human review pending
 │   ├── Phase6_ResultReplayPage.md     # 🔲 Not started
 │   └── Phase7_ConfirmationAndDemo.md  # 🔲 Not started
 ├── config/generator.config.json      # Seed, normal ranges, E1–E9, seed issues
@@ -164,11 +192,13 @@ shopfloor-mcp/
 │   ├── answer-key/                   # Independent event and weekly aggregates
 │   ├── eval/                         # Scenario schema, loading and freeze checks
 │   ├── core/                         # Validated queries, metrics, analysis, audit and issues
+│   ├── server/                       # Grouped/fine MCP tools, resources, prompts and stdio
 │   └── validator/                    # V01–V17 and CLI
 ├── eval/scenarios/                   # 30 eval + 10 dev JSON files, lock, question catalogue
-├── tests/                            # 114 tests across nine files
-├── scripts/                          # Asset copy, scenario freeze and core demo
-├── resources/anomaly-criteria.md     # Tested normal-rule anomaly thresholds
+├── tests/                            # 187 tests across 16 files
+├── scripts/                          # Assets, freeze, runtime copy, client config and demos
+├── resources/                        # Glossary, data guide and tested anomaly criteria
+├── docs/MCP_SETUP.md                 # Build, runtime DB, client setup and protocol demo
 ├── data/                             # Generated bundle, git-ignored
 ├── package.json
 ├── package-lock.json
@@ -190,8 +220,8 @@ shopfloor-mcp/
 | Phase 1 — Foundation | ✅ Done | TypeScript project, data generator (11 tables, 69,835 rows), answer key, 17 validation rules, 37 passing tests |
 | Phase 2 — Evaluation scenarios | ✅ Done | 30 frozen eval + 10 dev scenarios, weekly comparison, schema/reference validation, dataset-bound lock |
 | Phase 3 — Core server logic | ✅ Done | General periods, six states, metrics/comparison, analysis, audited public API, guarded draft/confirm, 63 new tests and CLI demo |
-| Phase 4 — MCP server | 📋 Planned | 10 Claude-callable tools / 4 resources / 2 prompts, in fine- and coarse-grained tool sets |
-| Phase 5 — Evaluation | 📋 Planned | Evaluation runner, tuning on development scenarios, 30-scenario evaluation, tool-set comparison |
+| Phase 4 — MCP server | ✅ Implemented; manual client check pending | Default 4 tools / optional fine 10, 4 resources / 2 prompts, 43 new tests and stdio demo |
+| Phase 5 — Evaluation | 🚧 Implemented; human review pending | Live Claude/MCP runner, dev tuning, answer/action checks, JSON/Markdown records, 4/10-tool comparison |
 | Phase 6 — Result replay page | 📋 Planned | Static page on GitHub Pages |
 | Phase 7 — Confirmation screen & demo | 📋 Planned | In-conversation issue confirmation form (MCP Apps under review; the 11th tool, human button only), demo video, documentation |
 
@@ -209,7 +239,7 @@ The plan documents are written in Korean; the Phase documents are in English and
 
 ## Limitations
 
-- Phases 1–3 supply data, frozen evaluation questions and tested server logic. MCP tools, AI evaluation and UI are planned for later phases. Natural-language interpretation belongs to the future AI client; core accepts structured period/filter inputs.
+- Phases 1–5 provide data, frozen questions, tested core/MCP server and live model evaluation tooling. Automatic checks are provisional, and initial N=1 runs do not measure variability. Human review, Desktop UI acceptance, replay page and confirmation UI remain pending.
 - Production quantities are hourly totals. The validator checks capacity after shift changes; it cannot prove the exact minute each good unit was produced.
 - Synthetic data only; no connection to real plant systems.
 - Local only: the server runs on the user's PC through Claude Desktop. No remote deployment or login.

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-10-23T07:36:54.366Z",
+  "model": "claude-sonnet-5-5",
+  "descriptionsHash": "e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2",
+  "policyHash": "7c1663140382ccfa10ca57530ff6a6fafedabf6393df0de7aa56391ce9d83d54",
+  "devRunIds": [
+    "20261023T073057831Z-dev-coarse-db939b2a",
+    "20261023T073452530Z-dev-fine-78a67952"
+  ],
+  "reason": "D01-D10 verified on both toolsets; public resources loaded, good-output shortfall clarified, and Korean negation grading corrected before eval.",
+  "previous": null
+}

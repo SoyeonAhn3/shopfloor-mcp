@@ -4,7 +4,7 @@
 
 > Claude가 생산 현황 질문에 서버가 계산한 수치와 추적 가능한 근거로 답하고, 사람이 확인한 뒤에만 이슈를 등록하는 MCP 서버
 
-**현재 상태: Phase 1~3 완료.** SQLite 데이터, 독립 정답표, 검증 규칙 17개, 평가용 시나리오 30개·개발용 10개와 서버 내부 로직을 구현했습니다. 일반화한 기간 처리, 집계·분석, 감사 기록과 권한·트랜잭션을 적용한 초안·확정 기능을 제공합니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. MCP 연결은 Phase 4에서 구현하며 AI 평가는 아직 실행하지 않았습니다.
+**현재 상태: Phase 1~4 구현, Phase 5 평가 도구 구현·사람 검수 대기.** 로컬 MCP 서버는 **공통 기능을 묶은 도구 4개**를 기본으로 제공하며 참고자료 4개·질문 템플릿 2개와 비교용 도구 10개를 지원합니다. 검증된 기간 해석·계산·감사 기록·초안을 실행용 SQLite 복사본에서 처리합니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. 실제 Claude 평가 기록과 읽기 쉬운 보고서는 `eval/`에 저장하며, Desktop 화면 확인은 별도 수동 검증으로 남아 있습니다.
 
 ## 개요
 
@@ -28,7 +28,7 @@
 
 ## 동작 흐름
 
-계획된 흐름입니다.
+구현한 텍스트 흐름입니다. 사람의 확정 화면은 Phase 7 계획입니다.
 
 ```
 사용자가 Claude 데스크톱에서 질문 ("4라인 왜 목표에 못 미쳐?")
@@ -42,11 +42,11 @@
 
 ## 기술 스택
 
-Phase 1은 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest를 사용합니다. 아래의 MCP·클라이언트 연결·결과 재생 페이지는 이후 Phase에서 구현할 계획입니다.
+서버는 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest와 버전을 고정한 MCP TypeScript SDK v2를 사용합니다. 클라이언트 연결 안내를 제공하며 결과 재생 페이지와 확정 화면은 이후 Phase 계획입니다.
 
 | Technology | Role | Why |
 |---|---|---|
-| TypeScript | 데이터 생성기·검증기, 이후 MCP 서버 | 데이터 도구, 서버, 이후 HTML/JS 확정 폼을 같은 언어로 개발 |
+| TypeScript | 데이터 생성기·검증기·core·MCP 서버 | 데이터 도구, 서버, 이후 HTML/JS 확정 폼을 같은 언어로 개발 |
 | SQLite | 생산 데이터, 이슈, 감사 기록 | DB 서버 없는 단일 파일. 고정 시드로 생산 내용을 재현하되 새 생성본은 별도로 구분 |
 | MCP (Model Context Protocol) | Claude와 서버 연결 | 대화와 도구 호출 반복은 Claude 데스크톱이 처리하고, 같은 서버를 다른 MCP 클라이언트에서도 재사용 가능 |
 | Claude 데스크톱 | 클라이언트 (대화, 도구 선택, 답변) | 채팅 화면을 직접 만들 필요가 없고, API 비용도 들지 않음 |
@@ -55,7 +55,7 @@ Phase 1은 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest�
 
 ## AI 구성 요소
 
-아래의 서버 계산과 보호 장치는 Phase 3에서 구현했습니다. AI/MCP 연결은 Phase 4 계획이며 현재 코드는 AI 서비스를 호출하지 않습니다.
+Phase 3의 서버 계산과 보호 장치를 Phase 4에서 MCP로 연결했습니다. 서버 자체는 AI 서비스를 호출하지 않습니다. Claude 등 MCP 클라이언트가 모델을 실행하고 필요한 도구를 선택합니다.
 
 ### 역할 분담
 
@@ -113,7 +113,7 @@ npm run validate -- --db data/run-02/production.db --json
 
 설정은 [config/generator.config.json](config/generator.config.json)에서 수정하거나 `generate`에 `--config 경로`로 전달합니다. 검증은 기본적으로 DB 옆의 설정 스냅샷을 사용하므로 원본 설정을 수정해도 예전 생성본의 검증 기준이 바뀌지 않습니다. 생성 파일 묶음은 Git에서 제외하며, DB와 정답표를 함께 다시 만듭니다.
 
-`npm run check`는 타입 검사, 파일 9개의 테스트 114개, 빌드를 실행하며 2026-10-23 모두 통과했습니다. 독립 정답과 사건·주간 계산, 다양한 기간과 윤년, 상태 6가지, 손실 등식, 권한, 근거, 저장 실패 취소, 동시 확정, 생성본 식별과 동결 무결성을 검증합니다. core 테스트는 일치하는 동결 생성본이 있으면 복사하고, 새 체크아웃에는 별도 테스트 데이터를 생성합니다. 개별 실행은 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드된 생성기·검증기는 Node.js로도 실행할 수 있습니다.
+`npm run check`는 타입 검사, **파일 16개의 테스트 187개**, 빌드를 실행합니다. Phase 5 신규 테스트 30개는 모델·도구 호출 반복, 한도, 채점 단위·중간 턴, 원본을 보존하는 실제 stdio 실행, DB 변경과 기록 해시 기반 사람 검수를 확인합니다. MCP 테스트는 도구 목록, 묶음·세부 버전 동일 결과, 기간, 권한·정보 보호와 복사본 보호를 검증합니다. 테스트는 `.env`를 읽거나 유료 API를 호출하지 않습니다. 일치하는 동결 생성본이 있으면 복사하고 새 체크아웃에는 별도 테스트 데이터를 만듭니다. 개별 실행은 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드된 생성기·검증기는 Node.js로도 실행할 수 있습니다.
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
@@ -128,7 +128,7 @@ npm run scenarios:freeze -- --dataset-dir data/phase2 --reason "Bind a newly gen
 npm run scenarios:check
 ```
 
-원래 식별값을 유지하려면 일치하는 생성본 복사본을 `npm run scenarios:check -- --dataset-dir path/to/copy`로 검사합니다. 기존 잠금은 사유 없이 덮어쓸 수 없습니다. 해시와 생성본 연결은 [Phase 2](Phase/Phase2_EvaluationScenarios.md)에 설명했습니다. Claude 데스크톱 연결 방법은 Phase 4에서 추가합니다.
+원래 식별값을 유지하려면 일치하는 생성본 복사본을 `npm run scenarios:check -- --dataset-dir path/to/copy`로 검사합니다. 기존 잠금은 사유 없이 덮어쓸 수 없습니다. 해시와 생성본 연결은 [Phase 2](Phase/Phase2_EvaluationScenarios.md), Claude Desktop·Code 연결 방법은 [MCP 실행 안내](docs/MCP_SETUP.md)에 있습니다.
 
 구현한 서버 로직은 AI 연결 없이 실행할 수 있습니다. 명령이 임시 DB 복사본에서 조회·감사 기록을 수행하고 종료 후 복사본을 정리합니다.
 
@@ -139,6 +139,34 @@ npm run core:demo -- --period '{"kind":"week_day","weeksAgo":1,"weekday":3}'
 ```
 
 기본값은 `data/phase2/production.db`의 지난달이며 `--db`로 다른 원본을 지정할 수 있습니다. 특정 월, 최근 N일·주·개월, 완료된 달력 주, 상대 주차의 요일과 직접 지정한 날짜·범위를 지원합니다. `--compare-to`에 다른 기간 JSON을 넣으면 비교합니다. 미입력은 상태로 표시하며 해당 구간은 관측 합계·목표에서 제외합니다. 기간별 의미와 TypeScript 호출 방법은 [Phase 3](Phase/Phase3_CoreLogic.md)에 있습니다.
+
+### MCP 실행하기
+
+빌드 후 생성한 DB를 복사하고, 실제 PC의 절대 경로가 들어 있는 클라이언트 설정을 출력합니다.
+
+```powershell
+npm run db:copy -- --from data/production.db --to data/run/phase4-production.db
+npm run --silent mcp:config -- --db data/run/phase4-production.db --role viewer --user demo
+npm run mcp:demo -- --db data/production.db
+```
+
+데모는 빌드된 stdio 서버에 연결해 목록을 확인하고 개발용 D01(L5 어제 실적)을 조회합니다. AI 모델은 사용하지 않습니다. 기본 `coarse`는 `get_line_info`, `query_production`, `analyze_production`, `preview_issue` 4개이며 `--toolset fine`으로 10개를 선택합니다. 기존 DB는 덮어쓰지 않으며 실행용 DB 옆의 `.runtime.json`을 함께 보관해야 합니다. 기능별 조건·검증·남은 수동 확인은 [Phase 4](Phase/Phase4_McpServer.md)에 기록했습니다.
+
+### 실제 AI 평가 (Phase 5)
+
+Git에서 제외된 `.env`에 `ANTHROPIC_API_KEY`를 입력합니다. `.env.example`은 비밀값 없이 지원 설정을 안내하며 기존 `.env`는 보존합니다. 평가에는 API 비용이 발생합니다. 실행기는 응답 요청 전에 토큰 수를 확인하고 설정한 예상 비용 한도를 적용합니다.
+
+```bash
+npm run eval -- --set dev --toolset coarse --ids D01 --max-cost-usd 0.25
+npm run eval:review -- --run <runId>
+npm run eval:summary
+```
+
+[eval/summary.md](eval/summary.md)에서 전체 결과를 확인합니다. 검수용 Markdown에는 질문, 실제 도구 입력, 서버 결과, 최종 답변, 독립 정답과 자동 검사가 들어 있습니다. 옆 JSON 체크리스트는 검수 대기로 시작하며 사람이 검수를 마치기 전에는 최종 정답률을 표시하지 않습니다. 전체 개발용 실행, 도구 설명 동결, 30개 질문 비교, 비용·실행 결과는 [Phase 5](Phase/Phase5_Evaluation.md)에 기록합니다. Claude에는 질문과 공개 MCP 문맥만 전달하며 정답표는 채점기에서만 사용합니다.
+
+### 모델 비교 계획
+
+**Phase 5 추가 실험 예정:** 같은 coarse 도구 4개·동결 질문·DB로 `claude-opus-5-5`와 기존 `claude-sonnet-5-5`를 비교합니다. 사람 검수를 거친 품질, 호출 횟수, 시간, 토큰과 비용을 평가합니다. Opus는 아직 실행하지 않았으며 모델별 개발용 검증·동결, 단가 확인과 모델 간 비교 보고서가 남아 있습니다. 현재 요약기는 같은 모델의 도구 구성을 비교합니다. 실험과 모델 지원 종료 시 전환 계획은 [Phase 5](Phase/Phase5_Evaluation.md)에 기록했습니다. 종료 자동 감시와 자동 대체 기능은 아직 구현하지 않았습니다.
 
 ## 프로젝트 구조
 
@@ -153,8 +181,8 @@ shopfloor-mcp/
 │   ├── Phase1_Foundation.md           # ✅ 완료
 │   ├── Phase2_EvaluationScenarios.md  # ✅ 완료
 │   ├── Phase3_CoreLogic.md            # ✅ 완료
-│   ├── Phase4_McpServer.md            # 🔲 미시작
-│   ├── Phase5_Evaluation.md           # 🔲 미시작
+│   ├── Phase4_McpServer.md            # ✅ 구현·자동 검증 완료, 클라이언트 수동 확인 대기
+│   ├── Phase5_Evaluation.md           # 🚧 구현·사람 검수 대기
 │   ├── Phase6_ResultReplayPage.md     # 🔲 미시작
 │   └── Phase7_ConfirmationAndDemo.md  # 🔲 미시작
 ├── config/generator.config.json      # 시드, 정상 범위, E1~E9, 과거 이슈
@@ -164,11 +192,13 @@ shopfloor-mcp/
 │   ├── answer-key/                   # 독립적인 사건·주간 집계
 │   ├── eval/                         # 시나리오 형식, 로딩, 동결 검사
 │   ├── core/                         # 검증된 조회, 집계·분석, 감사 기록과 이슈
+│   ├── server/                       # 묶음·세부 MCP 도구, 자료, 템플릿, stdio 연결
 │   └── validator/                    # V01~V17과 CLI
 ├── eval/scenarios/                   # 평가용 30개·개발용 10개 JSON, 잠금, 질문 목록
-├── tests/                            # 파일 9개, 테스트 114개
-├── scripts/                          # 리소스 복사, 시나리오 동결, core 실행 예제
-├── resources/anomaly-criteria.md     # 코드와 대조하는 정상 규칙 기반 이상 판단 기준
+├── tests/                            # 파일 16개, 테스트 187개
+├── scripts/                          # 빌드 자료, 동결, 실행용 복사, 설정, 데모
+├── resources/                        # 용어집, 데이터 안내, 검증된 이상 판단 기준
+├── docs/MCP_SETUP.md                 # 빌드, 실행 DB, 클라이언트 연결과 데모
 ├── data/                             # 생성 파일 묶음, Git 제외
 ├── package.json
 ├── package-lock.json
@@ -190,8 +220,8 @@ shopfloor-mcp/
 | Phase 1 — 개발 기반 | ✅ 완료 | TypeScript 프로젝트, 데이터 생성기 (테이블 11개, 69,835행), 정답표, 검증 규칙 17개, 테스트 37개 통과 |
 | Phase 2 — 평가 시나리오 | ✅ 완료 | 평가용 30개 동결·개발용 10개, 주간 비교, 형식·참조 검사, 생성본 연결 잠금 |
 | Phase 3 — 서버 내부 로직 | ✅ 완료 | 일반화한 기간, 상태 6가지, 집계·비교·분석, 감사 기록이 있는 호출 경로, 초안·확정 보호, 테스트 63개 추가와 CLI |
-| Phase 4 — MCP 서버 | 📋 예정 | Claude가 부르는 도구 10개 / 리소스 4개 / 프롬프트 2개, 잘게 나눈 버전과 크게 묶은 버전 |
-| Phase 5 — 평가 | 📋 예정 | 평가 실행기, 개발용 시나리오로 도구 설명 개선, 시나리오 30개 평가, 도구 세트 비교 |
+| Phase 4 — MCP 서버 | ✅ 구현·자동 검증 완료, 클라이언트 수동 확인 대기 | 기본 도구 4개·비교용 10개, 자료 4개·템플릿 2개, 신규 테스트 43개와 stdio 데모 |
+| Phase 5 — 평가 | 🚧 구현·사람 검수 대기 | 실제 Claude/MCP 실행기, 개발용 개선, 정답·행동 검사, JSON/Markdown 기록과 4개·10개 도구 비교 |
 | Phase 6 — 결과 재생 페이지 | 📋 예정 | GitHub Pages 정적 페이지 |
 | Phase 7 — 확정 화면과 데모 | 📋 예정 | 대화 안의 이슈 확정 폼 (MCP Apps 검토 중, 11번째 도구는 사람 버튼 전용), 데모 영상, 문서 |
 
@@ -207,7 +237,7 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 개발 2단계입니다. 상�
 
 ## 한계점
 
-- Phase 1~3의 데이터, 동결 평가 질문과 검증된 서버 로직을 제공합니다. MCP 도구, AI 평가와 화면은 이후 Phase에서 구현합니다. 자연어 해석은 이후 AI 클라이언트가 맡고 core는 구조화한 기간·필터를 받습니다.
+- Phase 1~5의 데이터·동결 질문·검증된 core·MCP 서버와 실제 모델 평가 도구를 제공합니다. 자동 검사는 잠정 판정이며 최초 N=1 실행은 변동성을 측정하지 못합니다. 사람 검수, Desktop 화면 확인, 결과 재생 페이지와 확정 화면은 남아 있습니다.
 - 생산 수량은 시간대별 합계입니다. 검증기는 교대 시간을 제외한 생산 가능 수량을 확인하며, 양품 하나하나의 생산 분까지 증명하지는 못합니다.
 - 가상 데이터만 사용하며, 실제 사내 시스템과 연동하지 않습니다.
 - 로컬 전용입니다. 사용자 PC에서 Claude 데스크톱이 서버를 실행하며, 원격 배포와 로그인은 없습니다.

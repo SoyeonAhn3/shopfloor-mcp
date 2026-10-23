@@ -14,6 +14,16 @@
     "scenarios:freeze": "tsx scripts/freeze-scenarios.ts",
     "scenarios:check": "tsx scripts/freeze-scenarios.ts --check",
     "core:demo": "tsx scripts/demo-core.ts",
+    "db:copy": "tsx scripts/copy-runtime-db.ts",
+    "mcp:start": "node dist/server/index.js",
+    "mcp:dev": "tsx src/server/index.ts",
+    "mcp:demo": "tsx scripts/demo-mcp.ts",
+    "mcp:config": "tsx scripts/mcp-config.ts",
+    "preeval": "npm run build",
+    "eval": "node dist/eval/runner.js",
+    "eval:freeze": "tsx src/eval/manage.ts freeze",
+    "eval:review": "tsx src/eval/manage.ts review",
+    "eval:summary": "tsx src/eval/manage.ts summary",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "test": "vitest run",
@@ -21,6 +31,9 @@
     "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.1.0",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/server": "2.3.1",
     "better-sqlite3": "13.0.3",
     "zod": "4.6.7"
   },

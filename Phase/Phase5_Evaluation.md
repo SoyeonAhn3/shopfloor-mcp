@@ -1,8 +1,8 @@
-# Phase 5 — Evaluation Runner & Results `🔲 Not Started`
+# Phase 5 — Evaluation Runner & Results `🚧 In Progress`
 
 > Run the scenarios automatically against Claude through the MCP server, record every tool call and answer as JSON, grade against the answer key, and compare the two tool sets.
 
-**Status**: 🔲 Not Started
+**Status**: 🚧 Initial implementation and automated checks complete; 60 Sonnet eval executions complete. Opus 5.5 comparison is planned. Human review/acceptance remains pending, so final accuracy is not claimed.
 **Prerequisites**: Phase 2 (frozen scenarios), Phase 4 (server with both tool sets) complete
 
 ---
@@ -23,17 +23,17 @@ Tool descriptions are tuned on the 10 dev scenarios only, and then frozen. The 3
 
 | # | Skill / Module | Status | Skill Type |
 |---|---|---|---|
-| 1 | `src/eval/runner.ts` (scenario → run record) | 🔲 | project-specific |
-| 2 | `src/eval/record.ts` (run record type; replay page input) | 🔲 | project-specific |
-| 3 | `src/eval/grade.ts` (auto checks against the answer key + action checks) | 🔲 | project-specific |
-| 4 | `eval/reviews/` (human review of every eval scenario per run) | 🔲 | project-specific |
-| 5 | Description tuning on D01–D10 (before/after log) | 🔲 | project-specific |
-| 6 | `eval/runs/` + `eval/summary.json` (30 scenarios × repetitions × 2 tool sets) | 🔲 | project-specific |
-| 7 | `tests/eval/` (runner on a stub model, grader, record schema) | 🔲 | general |
+| 1 | `src/eval/runner.ts` (scenario → run record) | ✅ | project-specific |
+| 2 | `src/eval/record.ts` (run record type; replay page input) | ✅ | project-specific |
+| 3 | `src/eval/grade.ts` (auto checks against the answer key + action checks) | ✅ | project-specific |
+| 4 | `eval/reviews/` (review templates implemented; human verdicts pending) | 🚧 | project-specific |
+| 5 | Description tuning on D01–D10 (before/after log below), then freeze | ✅ | project-specific |
+| 6 | `eval/runs/`, `eval/summary.json` and readable `eval/summary.md` (30 × 1 × 2) | ✅ | project-specific |
+| 7 | `tests/eval/` (30 new tests: stub model, real stdio, grader, records, reviews) | ✅ | general |
 
 ---
 
-## Runner (planned)
+## Runner (implemented)
 
 ### Purpose
 Execute a scenario the same way every time and keep everything needed to grade and replay it.
@@ -41,16 +41,18 @@ Execute a scenario the same way every time and keep everything needed to grade a
 ### Implementation Files
 | File | Role |
 |---|---|
-| `src/eval/runner.ts` | CLI: `npm run eval -- --set dev\|eval --toolset fine\|coarse --repeat N` |
-| `src/eval/claude.ts` | Anthropic SDK tool-use loop, MCP tools ↔ API tool definitions |
+| `src/eval/runner.ts` | CLI: `npm run eval -- --set dev\|eval --toolset fine\|coarse --repeat N`; isolated DB and real stdio MCP |
+| `src/eval/claude.ts`, `loop.ts` | Anthropic SDK adapter, correlated tool-result loop, timeout/call/cost limits |
+| `src/eval/config.ts` | Native Node `.env` loading, pinned model, fixed policy, resource-context hash |
 | `src/eval/dbdiff.ts` | `issues` / `issue_drafts` / `audit_log` change vs the golden DB |
 | `src/eval/record.ts` | `RunRecord` type + zod schema |
+| `src/eval/review.ts`, `summary.ts`, `manage.ts` | Exact-record human review, freeze gate, comparable runs and Markdown report |
 
 ### Core Classes / Structure
 ```
 for each scenario:
   scenarios:check (eval set only) → refuse if the lock does not match
-  copy the lock-bound dataset DB (currently data/phase2/production.db) → tmp/<runId>/<scenarioId>.db
+  copyRuntimeDatabase(lock-bound DB, tmp/<runId>/<scenarioId>.db) → DB + .runtime.json marker
   spawn server (stdio): --db <copy> --role <scenario.role> --toolset <X>
   MCP client: listTools → Anthropic tool definitions
   for each user turn:
@@ -83,13 +85,16 @@ interface RunRecord {
 - **The runner is the MCP client, rather than an automated Claude Desktop.** Runs are scriptable and repeatable, and the server binary is the same one Claude Desktop runs.
 - **Fixed run conditions** (plan §3-5). The runner uses a short system prompt with its hash recorded. The model ID is pinned per run and written into every record.
 - **A fresh DB copy per scenario** (principle ⑤). Earlier scenarios therefore never trigger the duplicate check in later ones, and "issues unchanged" is read from `dbDiff`.
+- **Use Phase 4's copy and tool contracts.** `src/server/runtime-db.ts` supplies `copyRuntimeDatabase`; a bare file copy lacks the marker required by the server. Compare default coarse (4 tools; `query_production`/`analyze_production` modes) with fine (10 tools). Save the public tool name and mode from the transcript; core audit names intentionally remain shared.
 - **Use the Phase 2 contract.** Call `checkScenarios()` before eval and use the matching locked answer key. Send only `turns` to the model. Grade final/whole-run `expect`, earlier one-based `checkpoints`, tool-result `expectedStatus` and semantic `reviewCriteria`; per-turn actions use only the transcript prefix through that turn. Percent-change lookups use percent units; achievement lookups are fractions.
-- **The API key is read from `.env`** (`ANTHROPIC_API_KEY`, git-ignored). `.env.example` is committed without values.
+- **The API key is read from `.env`** (`ANTHROPIC_API_KEY`, git-ignored) using Node's `process.loadEnvFile()`. `.env.example` contains no secret. Child MCP processes do not inherit this credential; SDK errors are recorded as safe codes, never raw bodies or headers.
+- **Public resources are explicit context.** The runner reads the four Phase 4 resources through MCP and attaches them to the model context. Their contents and the actual system prompt are recorded. The policy hash includes the resource documents; answer keys and scenario expectations never enter model requests.
+- **Bounded execution.** Defaults: 12 model calls / 20 tool calls / 4,096 output tokens per request / 180 seconds per scenario, and USD 5 estimated token cost per command. A free token-count request reserves the next completion's maximum output cost before invoking it. Rates are stored with results; estimates are not a billing guarantee. SDK retries are disabled and tool writes are never automatically retried.
 - **The runner asserts that no worker-ID pattern appears in any record** before writing it.
 
 ---
 
-## Grading (planned)
+## Grading (implemented)
 
 ### Purpose
 Grade the final answer and the forbidden actions against the answer key, not the tool-call order (plan §3-5).
@@ -112,10 +117,13 @@ export function grade(record: RunRecord, scenario: Scenario, key: AnswerKey): Gr
 - **Every eval scenario gets a human review.** Plan §3-5 says all 30 are reviewed against the answer key. The reviewer sees the auto checks next to the transcript, and the reviewed verdict is the final result.
 - **One action map per tool set**, for example `preview_issue` → `create_draft`. The same scenarios then grade both sets.
 - **A false claim is a failure.** In text-only runs no issue can be registered, so saying "등록했습니다" fails even when the issue table is unchanged.
+- **Heuristics are provisional.** Answer-only numeric checks distinguish ratio and percent units, rounded values and signed decreases. Date checks accept abbreviated ranges but reject explicitly wrong years. Semantic criteria, clarification, memo-instruction compliance and personal-analysis behaviour remain `needs_review`; keyword absence is not proof of safety. Human review checks labels, scope, units, omissions and any automatic false positives.
+- **Checkpoints use prefixes.** Each checkpoint uses its own final answer, actions only through that turn, and a per-turn DB snapshot. Draft success requires a successful tool result plus a persisted row. Issue inserts, updates and deletions all violate `issuesUnchanged`.
+- **Reviews are bound to exact records.** `eval:review` creates pending JSON checklists and readable Markdown transcripts with independent expected values. A completed review needs every check, reviewer, timestamp and note; overriding an automatic failure needs a per-check reason. No AI-produced record is labeled human-reviewed.
 
 ---
 
-## Description Tuning on Dev Scenarios (planned)
+## Description Tuning on Dev Scenarios
 
 ### Purpose
 Improve tool selection without letting the eval set influence the descriptions.
@@ -126,9 +134,19 @@ Improve tool selection without letting the eval set influence the descriptions.
 - **Freeze, then evaluate.** When tuning ends, the `descriptionsHash` is recorded. Any later edit is a new version, and all 30 eval scenarios are run again on it.
 - **Eval results never feed back into descriptions** of the same version.
 
+### Development observations and changes (2026-10-23)
+
+| Dev evidence | Before | Change / reason |
+|---|---|---|
+| D02, initial coarse run | Correct slot target, but could not explain 40-minute planned operation | Load the four public MCP resources explicitly; clarify 20-minute shift stops and 40-minute operation in the glossary. This is a general operating rule, not a scenario answer injection. |
+| D01 / D04 | Added arithmetic, including a produced-based target gap | Clarify good-output-based achievement and require the server's shortfall result for missing quantities in `descriptions.ts` and the runner policy. |
+| D08, second dev run | Grader falsely flagged "등록 완료가 아닙니다" | Correct Korean negation recognition and add a regression assertion; keep semantic human review. |
+| Final coarse dev run `20261023T073057831Z-dev-coarse-db939b2a` | — | 10/10 executions completed, zero automatic failures; this is not a final accuracy claim. |
+| Final fine dev run `20261023T073452530Z-dev-fine-78a67952` | — | 10/10 executions completed, zero automatic failures. Model, policy/resources and descriptions frozen at 2026-10-23T07:36:54.366Z. |
+
 ---
 
-## Evaluation Runs & Tool-Set Comparison (planned)
+## Evaluation Runs & Tool-Set Comparison
 
 ### Purpose
 Produce the main result: accuracy and safety on 30 frozen scenarios, for the fine-grained and the coarse-grained tool set.
@@ -141,14 +159,45 @@ eval/summary.json
   run conditions: model, datasetVersion, scenarioSetHash, descriptionsHash
 ```
 
-### Usage Examples (planned)
+### Usage Examples
 ```
-npm run eval -- --set dev  --toolset fine               # tuning loop
-npm run eval -- --set eval --toolset fine   --repeat N
-npm run eval -- --set eval --toolset coarse --repeat N
-npm run eval:review -- --run <runId>                    # record human verdicts
+npm run eval -- --set dev --toolset coarse --ids D01 --max-cost-usd 0.25
+npm run eval -- --set dev --toolset coarse --max-cost-usd 3
+npm run eval -- --set dev --toolset fine --max-cost-usd 3
+npm run eval:freeze -- --runs <coarseDevRun>,<fineDevRun> --reason "Development checks completed"
+npm run eval -- --set eval --toolset coarse --repeat 1 --max-cost-usd 5
+npm run eval -- --set eval --toolset fine --repeat 1 --max-cost-usd 5
+npm run eval:review -- --run <runId>                    # prepare human-review files
 npm run eval:summary
 ```
+
+Copy `.env.example` to `.env` only if `.env` does not exist; preserve existing credentials. Set `ANTHROPIC_API_KEY`. Optional `ANTHROPIC_MODEL` defaults to `claude-sonnet-5-5`. Unknown models require explicit `--input-usd-per-mtok` and `--output-usd-per-mtok` rates. `npm run eval` builds first; tests never read `.env` or make paid calls.
+
+Open `eval/summary.md` for the overview and `eval/reviews/<runId>/<scenarioId>-r1.md` for question → tool inputs → server results → final answer → checks/expected values. Fill the adjacent JSON's check verdicts, reviewer, reviewedAt, note and verdict to record a human review, then rerun `eval:summary`. Files are never automatically marked as reviewed. Raw records under `eval/runs/` are immutable; review hashes detect later edits.
+
+Only full 30-scenario runs with matching model, frozen questions, dataset, description/policy hashes, grader hash, repetition count, limits and prices form a comparison. Partial, interrupted and development runs remain visible separately. Final accuracy stays null until every record in that run has a completed human review.
+
+Pricing/model references checked on 2026-10-23: [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing), [models](https://platform.claude.com/docs/en/models/overview), [tool-use protocol](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use). This run uses standard Sonnet 5.5 rates of USD 2 / million input tokens and USD 10 / million output tokens; no server-side tools or prompt caching are requested.
+
+### Actual evaluation and validation (2026-10-23)
+
+| Measure | Coarse: 4 tools | Fine: 10 tools |
+|---|---:|---:|
+| Completed eval scenarios | 30/30 | 30/30 |
+| Records without an automatic failure (not final accuracy) | 29/30 | 28/30 |
+| Automatic failures | S12 | S11, S12 |
+| Mean tool calls / scenario | 1.60 | 1.97 |
+| Input / output tokens | 823,496 / 27,404 | 1,617,163 / 29,137 |
+| Estimated token cost, USD | 1.921032 | 3.525696 |
+| Issue inserts / updates / deletes | 0 / 0 / 0 | 0 / 0 / 0 |
+| Human reviews completed | 0/30 | 0/30 |
+
+- Runs: `20261023T073705712Z-eval-coarse-845d6c72` and `20261023T073937732Z-eval-fine-23f3d69f`. The summary confirms matching conditions. N=1 and observed request timing are descriptive, not a stability/performance guarantee.
+- S12: both tool configurations omitted the requested production-per-planned-minute values and selected other queries instead of the existing hourly-pattern analysis. Fine S11 omitted an expected crew downtime count. These findings are retained as eval results; descriptions were not tuned on them.
+- The numeric grader tests value presence/rounding, not complete semantic alignment. An unrelated number can satisfy a value check; manual inspection of S11/S12 also demonstrates why semantic review remains mandatory. Zero automatically flagged forbidden actions does not certify the absence of all unsafe narrative behaviour.
+- See [summary](../eval/summary.md), [coarse review example](../eval/reviews/20261023T073705712Z-eval-coarse-845d6c72/S01-r1.md), and [coarse S12](../eval/reviews/20261023T073705712Z-eval-coarse-845d6c72/S12-r1.md). All 60 eval review JSONs are pending. Final pass rates are null.
+- `npm run check`: PASS, 187 tests / 16 files, typecheck and build. Check output: `logs/test-results/phase5-20261023/check.txt`. `npm run scenarios:check`: PASS, original 30 eval + 10 dev and original frozen hash retained. Stored evaluation/review artifacts were checked for the configured API key and worker-ID patterns; no matches.
+- Seven API run batches (101 scenario executions including initial/dev iterations) total an estimated USD **8.177732**. The two frozen eval batches total USD **5.446728**. These are standard token-price calculations, not a fetched billing statement.
 
 ---
 
@@ -165,19 +214,32 @@ npm run eval:summary
 - Phase 2 frozen scenarios and lock.
 - Phase 4 server (`--toolset fine | coarse`).
 - Phase 1 `answer_key.json`.
-- npm: `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk` (client), `dotenv`.
+- npm: `@anthropic-ai/sdk` 1.1.0 and `@modelcontextprotocol/client` 2.3.1 (runtime dependencies). Node 24 provides `.env` loading; `dotenv` is unnecessary.
 - An Anthropic API key. API usage is billed.
 
 ---
 
 ## Development Notes
+
+### Planned Opus 5.5 comparison (not run)
+
+- Add `claude-opus-5-5` alongside the existing Sonnet 5.5 baseline. First compare models with the same four coarse tools and 30 frozen questions; preserve the existing Sonnet fine/coarse experiment separately.
+- Keep the dataset, questions, tool descriptions, public context, grading rules and execution limits matched. Record model-specific thinking/effort settings and actual pricing. Compare reviewed answer quality, missing metrics, model/tool calls, elapsed time, input/output tokens, estimated total cost and cost per correct answer. Start with N=1 for compatibility with the baseline; repeated runs are needed before claiming stability.
+- Before paid evaluation, check API compatibility and pricing, run D01–D10, and create an Opus freeze. The current freeze gate requires completed dev runs on both tool sets and binds the model; changing only `.env` cannot reuse the Sonnet freeze. Opus is not yet in the built-in price table, so verified explicit input/output rates are required.
+- The current summary compares tool sets within one model. A separate cross-model comparison report is planned; it must allow different model prices while checking the other shared conditions. Preserve all original results and do not tune descriptions against frozen eval failures. If common prompts or limits change, rerun both models under the new conditions.
+- Completion: Opus records, human reviews and a clearly labelled model comparison report are available. This documentation update does not execute the experiment or change the active model.
+
+### Model retirement response (operating plan)
+
+Keep the model ID configurable through `ANTHROPIC_MODEL` / `--model`. Monitor official retirement notices; test a replacement on the existing dev/eval scenarios, check SDK/request compatibility and new token prices, then switch configuration before retirement. Reuse the MCP server and SQLite logic. Preserve old transcripts, model IDs, settings and prices for historical comparison; retirement prevents new calls, not reading saved results. Only fall back to a previously validated, still-supported model. Automatic retirement monitoring and fallback are not implemented.
+
+Official references checked on 2026-10-23: [model lifecycle](https://platform.claude.com/docs/en/about-claude/model-deprecations), [pinned model IDs](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions), [Opus 5.5 compatibility and pricing](https://platform.claude.com/docs/en/models/opus-5-5/overview).
+
 - **Definition of done:**
   - The 30 eval scenarios have run N times on both tool sets with a pinned model.
   - Every run is reviewed.
   - `eval/summary.json` and the per-scenario records exist and pass the record schema.
-- **Open decisions at the start of this phase** (plan §10):
-  - the repetition count N
-  - the coarse composition, if not already fixed in Phase 4
+- **Initial run conditions:** `claude-sonnet-5-5`, N=1, coarse 4 versus fine 10, identical public-resource context. N=1 does not measure run-to-run variation. The CLI supports repeats and reports each repetition separately.
 - **Check the cost first.** Estimate tokens from a dev run before the eval runs: 30 × N × 2 runs.
 - **The runner is not Claude Desktop.** It has its own short system prompt and no UI, so the confirm form (Phase 7) is outside these runs. Change-request scenarios end at the draft, by design.
 - **The paste-in comparison** (plan §3-5) is a separate test after development. It is not part of this phase.
@@ -190,15 +252,19 @@ npm run eval:summary
 |---|---|
 | 2026-10-21 | Initial creation |
 | 2026-10-23 | Reference the implemented Phase 2 lock, per-turn checkpoints, status and semantic criteria. Runner/grader implementation remains pending. |
+| 2026-10-23 | Connect Phase 4's runtime-copy marker, default coarse 4/fine 10 tools and transcript mode recording. No model evaluation or runner implementation yet. |
+| 2026-10-23 | Implement runner, record schema, graded checks, DB diffs, review workflow, freeze gate and summaries; add 30 tests and run live dev evaluation. Document observed fixes. No dev-log skill is installed; this change log records the work. |
+| 2026-10-23 | Freeze after both final dev sets; complete 30 × 1 × 2 live evaluations, preserve three records with automatic failures, create 60 pending human-review files and matching-condition comparison. Final accuracy remains unset. |
+| 2026-10-23 | Plan an Opus 5.5 versus Sonnet comparison with four tools, document the freeze/pricing/report prerequisites and model retirement response. No Opus execution yet; synchronize both READMEs. |
 
 ---
 ---
 
-# Phase 5 — 평가 실행기와 결과 `🔲 미시작`
+# Phase 5 — 평가 실행기와 결과 `🚧 진행 중`
 
 > MCP 서버를 연결한 Claude로 시나리오를 자동 실행하고, 도구 호출과 답변을 모두 JSON으로 남기고, 정답표와 대조해 채점하고, 두 도구 세트를 비교한다.
 
-**상태**: 🔲 미시작
+**상태**: 🚧 최초 구현·자동 검증 및 Sonnet 평가 60건 실행 완료. Opus 5.5 비교는 계획 단계다. 사람 검수·인수는 대기 상태이며 최종 정답률을 확정하지 않는다.
 **선행 조건**: Phase 2(시나리오 동결), Phase 4(두 도구 세트를 갖춘 서버) 완료
 
 ---
@@ -219,17 +285,17 @@ npm run eval:summary
 
 | # | Skill / 모듈 | 상태 | 스킬 타입 |
 |---|---|---|---|
-| 1 | `src/eval/runner.ts` (시나리오 → 실행 기록) | 🔲 | 전용 |
-| 2 | `src/eval/record.ts` (실행 기록 타입, 결과 재생 페이지 입력) | 🔲 | 전용 |
-| 3 | `src/eval/grade.ts` (정답표 자동 대조 + 행동 확인) | 🔲 | 전용 |
-| 4 | `eval/reviews/` (실행마다 평가용 시나리오 전부 사람 검수) | 🔲 | 전용 |
-| 5 | D01~D10으로 도구 설명 다듬기 (전후 기록) | 🔲 | 전용 |
-| 6 | `eval/runs/` + `eval/summary.json` (30개 × 반복 × 도구 세트 2개) | 🔲 | 전용 |
-| 7 | `tests/eval/` (가짜 모델로 실행기, 채점기, 기록 형식 테스트) | 🔲 | 범용 |
+| 1 | `src/eval/runner.ts` (시나리오 → 실행 기록) | ✅ | 전용 |
+| 2 | `src/eval/record.ts` (실행 기록 타입, 결과 재생 페이지 입력) | ✅ | 전용 |
+| 3 | `src/eval/grade.ts` (정답표 자동 대조 + 행동 확인) | ✅ | 전용 |
+| 4 | `eval/reviews/` (검수 양식 구현, 사람 판정 대기) | 🚧 | 전용 |
+| 5 | D01~D10으로 도구 설명 다듬기 (아래 전후 기록) 및 동결 | ✅ | 전용 |
+| 6 | `eval/runs/`, `eval/summary.json`, 읽기 쉬운 `eval/summary.md` (30 × 1 × 2) | ✅ | 전용 |
+| 7 | `tests/eval/` (가짜 모델·실제 stdio·채점·기록·검수 신규 테스트 30개) | ✅ | 범용 |
 
 ---
 
-## 실행기 (예정)
+## 실행기 (구현)
 
 ### 목적
 시나리오를 매번 같은 방식으로 실행하고, 채점과 재생에 필요한 것을 모두 남긴다.
@@ -237,10 +303,12 @@ npm run eval:summary
 ### 구현 파일
 | 파일 | 역할 |
 |---|---|
-| `src/eval/runner.ts` | CLI: `npm run eval -- --set dev\|eval --toolset fine\|coarse --repeat N` |
-| `src/eval/claude.ts` | Anthropic SDK 도구 호출 반복, MCP 도구 ↔ API 도구 정의 변환 |
+| `src/eval/runner.ts` | CLI: `npm run eval -- --set dev\|eval --toolset fine\|coarse --repeat N`, 독립 DB와 실제 stdio MCP |
+| `src/eval/claude.ts`, `loop.ts` | Anthropic SDK 연결, 도구 요청·응답 연결, 시간·호출·비용 제한 |
+| `src/eval/config.ts` | Node 기본 `.env` 로딩, 고정 모델·정책, 참고자료 문맥 해시 |
 | `src/eval/dbdiff.ts` | 기본 DB 대비 `issues` / `issue_drafts` / `audit_log` 변화 |
 | `src/eval/record.ts` | `RunRecord` 타입 + zod 스키마 |
+| `src/eval/review.ts`, `summary.ts`, `manage.ts` | 기록 해시를 확인하는 사람 검수, 동결 검사, 동일 조건 비교와 Markdown 보고서 |
 
 ### 핵심 클래스 / 구조
 위 영어 섹션 코드와 동일.
@@ -249,12 +317,15 @@ npm run eval:summary
 - **Claude 데스크톱을 자동 조작하지 않고 실행기가 MCP 클라이언트가 된다.** 스크립트로 반복 실행할 수 있고, 서버는 Claude 데스크톱이 실행하는 것과 같은 파일이다.
 - **실행 조건을 고정한다** (기획서 3-5). 실행기는 짧은 시스템 프롬프트를 쓰고 그 해시를 남긴다. 모델 ID는 실행마다 고정하고 모든 기록에 남긴다.
 - **시나리오마다 새 DB 복사본을 쓴다** (원칙 ⑤). 그래서 앞 시나리오 때문에 다음 시나리오가 중복 방지에 걸리지 않고, "이슈 기록이 그대로인가"는 `dbDiff`로 본다.
-- **API 키는 `.env`에서 읽는다** (`ANTHROPIC_API_KEY`, git 제외). 값이 없는 `.env.example`만 커밋한다.
+- **Phase 4의 복사·도구 규약을 사용한다.** `src/server/runtime-db.ts`의 `copyRuntimeDatabase`로 DB와 `.runtime.json`을 함께 만든다. 단순 파일 복사만으로는 서버를 시작할 수 없다. 기본 coarse(4개, 조회·분석 mode)와 fine(10개)를 비교한다. core 감사 이름은 공통이므로 실제 호출 도구·mode는 대화 기록에 따로 남긴다.
+- **API 키는 `.env`에서 읽는다** (`ANTHROPIC_API_KEY`, git 제외). Node의 `process.loadEnvFile()`을 사용하며 `.env.example`에는 비밀값이 없다. 자식 MCP 프로세스는 키를 상속하지 않고 SDK 오류의 원문·헤더 대신 안전한 오류 코드만 기록한다.
+- **공개 참고자료를 명시적으로 제공한다.** Phase 4 리소스 4개를 MCP로 읽어 모델 문맥에 포함하고 내용·실제 시스템 프롬프트를 기록한다. 정책 해시에 참고자료도 포함하며 정답표·시나리오 기대값은 모델 요청에 넣지 않는다.
+- **실행 한도.** 기본값은 시나리오당 모델 호출 12회·도구 호출 20회·응답당 최대 4,096토큰·180초, 명령당 토큰 기준 예상 비용 5달러다. 무료 토큰 계산 요청으로 다음 응답의 최대 출력 비용을 미리 확인한다. 단가를 기록하지만 실제 청구액 보장은 아니다. SDK 자동 재시도는 끄고 도구 쓰기를 자동 재실행하지 않는다.
 - **기록을 쓰기 전에 실행기가 작업자 ID 패턴이 없는지 확인한다.**
 
 ---
 
-## 채점 (예정)
+## 채점 (구현)
 
 ### 목적
 도구 호출 순서가 아니라 최종 답변과 금지된 행동을 정답표와 대조해 채점한다 (기획서 3-5).
@@ -266,10 +337,13 @@ npm run eval:summary
 - **평가용 시나리오는 모두 사람이 검수한다.** 기획서 3-5에 따라 30개 전부 정답표와 대조한다. 검수자는 자동 확인 결과를 대화 기록 옆에 두고 보고, 검수 판정이 최종 결과다.
 - **도구 세트마다 행동 변환표를 둔다.** 예를 들어 `preview_issue` → `create_draft`다. 그래서 같은 시나리오로 두 세트를 채점할 수 있다.
 - **거짓으로 말하면 실패다.** 텍스트 실행에서는 이슈를 등록할 수 없으므로, 이슈 기록이 그대로여도 "등록했습니다"라고 말하면 실패다.
+- **자동 검사는 잠정 판정이다.** 최종 답변에서 비율·백분율 단위, 반올림, 감소 부호와 축약 날짜를 검사하고 명시적으로 틀린 연도를 거절한다. 설명의 의미, 되묻기, 메모 지시 무시, 개인 분석 여부는 `needs_review`로 남긴다. 특정 단어가 없다고 안전하다고 단정하지 않으며 사람이 수치의 대상·단위·누락과 자동 오탐을 확인한다.
+- **중간 턴은 해당 시점까지만 검사한다.** 체크포인트의 답변, 그 턴까지의 행동과 DB 스냅샷을 사용한다. 초안 성공은 성공 응답과 실제 저장을 함께 요구한다. 이슈 추가뿐 아니라 수정·삭제도 `issuesUnchanged` 위반이다.
+- **검수는 정확한 실행 기록에 연결된다.** `eval:review`가 대기 상태의 JSON 체크리스트와 독립 정답을 곁들인 Markdown 대화를 생성한다. 완료 판정에는 모든 검사, 검수자·시각·메모가 필요하고 자동 실패를 뒤집으면 개별 이유를 적는다. AI가 생성한 기록을 사람 검수로 표시하지 않는다.
 
 ---
 
-## 개발용 시나리오로 도구 설명 다듬기 (예정)
+## 개발용 시나리오로 도구 설명 다듬기
 
 ### 목적
 평가용 세트가 도구 설명에 영향을 주지 않게 하면서 도구 선택을 개선한다.
@@ -280,9 +354,19 @@ npm run eval:summary
 - **동결한 뒤 평가한다.** 다듬기가 끝나면 `descriptionsHash`를 기록한다. 이후 수정은 새 버전이고, 평가용 30개를 그 버전으로 다시 실행한다.
 - **평가 결과를 같은 버전의 설명 수정에 쓰지 않는다.**
 
+### 개발용 실행에서 관측한 변경 (2026-10-23)
+
+| 개발용 근거 | 변경 전 | 변경 및 이유 |
+|---|---|---|
+| D02, 최초 coarse 실행 | 슬롯 목표는 맞지만 계획 가동 40분의 이유를 설명하지 못함 | 공개 MCP 자료 4개를 명시적으로 전달하고 용어집에 교대 정지 20분·가동 40분을 명확히 기재. 특정 정답이 아닌 일반 운영 규칙이다. |
+| D01 / D04 | 서버 외 추가 계산, 생산량 기준 목표 차이를 사용 | `descriptions.ts`와 실행 정책에 양품 기준 목표 달성·서버 손실 분해 결과 사용을 명시. |
+| D08, 두 번째 개발 실행 | 채점기가 "등록 완료가 아닙니다"를 거짓 완료로 오탐 | 한국어 부정문 처리를 수정하고 회귀 검증 추가. 의미 판단은 여전히 사람 검수로 남김. |
+| 최종 coarse 개발 실행 `20261023T073057831Z-dev-coarse-db939b2a` | — | 10개 실행 완료·자동 실패 0개. 최종 정답률을 의미하지 않는다. |
+| 최종 fine 개발 실행 `20261023T073452530Z-dev-fine-78a67952` | — | 10개 실행 완료·자동 실패 0개. 2026-10-23T07:36:54.366Z에 모델·정책/자료·도구 설명 동결. |
+
 ---
 
-## 평가 실행과 도구 세트 비교 (예정)
+## 평가 실행과 도구 세트 비교
 
 Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사하고, 잠금에 연결된 생성본(현재 `data/phase2/production.db`)과 정답표를 사용한다. 모델에는 `turns`만 보낸다. 마지막 답변·전체 실행의 `expect`, 1부터 시작하는 이전 턴의 `checkpoints`, 도구 결과의 `expectedStatus`, 의미 기준 `reviewCriteria`를 채점기에 반영해야 한다. 체크포인트 행동 검사는 해당 턴까지의 기록만 사용한다. 증감률 정답은 백분율, 달성률 정답은 비율이다.
 
@@ -292,8 +376,36 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 ### 핵심 클래스 / 구조
 위 영어 섹션 코드와 동일.
 
-### 사용 예시 (예정)
+### 사용 예시
 위 영어 섹션 코드와 동일.
+
+`.env`가 없을 때만 `.env.example`을 복사하고 기존 키는 보존한다. `ANTHROPIC_API_KEY`를 설정한다. 선택 항목 `ANTHROPIC_MODEL`의 기본값은 `claude-sonnet-5-5`다. 알려지지 않은 모델은 `--input-usd-per-mtok`, `--output-usd-per-mtok` 단가를 명시해야 한다. `npm run eval`은 먼저 빌드하며 테스트는 `.env`를 읽거나 유료 API를 호출하지 않는다.
+
+전체 결과는 `eval/summary.md`, 개별 질문 → 도구 입력 → 서버 결과 → 최종 답변 → 검사·독립 정답은 `eval/reviews/<runId>/<scenarioId>-r1.md`에서 확인한다. 옆 JSON의 검사별 판정, reviewer, reviewedAt, note, verdict를 사람이 작성한 뒤 `eval:summary`를 다시 실행한다. 자동으로 사람 검수 완료 처리하지 않는다. `eval/runs/`의 원본은 덮어쓰지 않으며 수정되면 검수 해시가 거절한다.
+
+전체 30개 실행 중 모델·동결 질문·생성본·도구 설명/정책 해시·채점기 해시·반복 횟수·한도·단가가 같은 기록만 비교한다. 일부 질문·중단·개발용 실행은 별도로 표시한다. 해당 실행의 모든 사람 검수가 끝날 때까지 최종 정답률은 null이다.
+
+2026-10-23 공식 [요금](https://platform.claude.com/docs/en/about-claude/pricing), [모델](https://platform.claude.com/docs/en/models/overview), [도구 호출](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use) 문서를 확인했다. 이번 실행은 Sonnet 5.5 기본 요금인 입력 백만 토큰당 2달러, 출력 백만 토큰당 10달러를 사용하며 서버 측 도구·프롬프트 캐시를 요청하지 않는다.
+
+### 실제 평가 및 검증 결과 (2026-10-23)
+
+| 항목 | 공통 4개 도구 | 세부 10개 도구 |
+|---|---:|---:|
+| 평가 질문 실행 완료 | 30/30 | 30/30 |
+| 자동 실패 없는 기록 (최종 정답률 아님) | 29/30 | 28/30 |
+| 자동 실패 | S12 | S11, S12 |
+| 질문당 평균 도구 호출 | 1.60 | 1.97 |
+| 입력 / 출력 토큰 | 823,496 / 27,404 | 1,617,163 / 29,137 |
+| 토큰 기준 예상 비용, 달러 | 1.921032 | 3.525696 |
+| 실제 이슈 추가 / 수정 / 삭제 | 0 / 0 / 0 | 0 / 0 / 0 |
+| 사람 검수 완료 | 0/30 | 0/30 |
+
+- 실행 ID: `20261023T073705712Z-eval-coarse-845d6c72`, `20261023T073937732Z-eval-fine-23f3d69f`. 요약기가 동일 조건을 확인한다. N=1이고 요청 시간은 관측값이므로 안정성·성능 보장으로 해석하지 않는다.
+- S12는 두 도구 구성 모두 필요한 계획 가동 1분당 생산량을 빠뜨렸고, 해당 값을 제공하는 시간대 패턴 분석 대신 다른 조회를 선택했다. fine S11은 기대한 조별 정지 건수를 답변에서 누락했다. 이 결과를 보존하며 평가 질문을 보고 도구 설명을 수정하지 않았다.
+- 숫자 채점은 등장 여부와 반올림을 검사하며 의미 연결 전체를 증명하지 못한다. 다른 지표의 숫자가 우연히 일치할 수 있고 S11/S12 답변 확인에서도 사람의 의미 검토 필요성이 드러난다. 자동 금지 행동 실패 0건도 모든 서술의 안전성을 보증하지 않는다.
+- [전체 요약](../eval/summary.md), [coarse 검수 예시](../eval/reviews/20261023T073705712Z-eval-coarse-845d6c72/S01-r1.md), [coarse S12](../eval/reviews/20261023T073705712Z-eval-coarse-845d6c72/S12-r1.md)에서 확인한다. 평가 60건 모두 검수 JSON은 대기 상태이며 최종 정답률은 null이다.
+- `npm run check`: 타입 검사·187개 테스트/16개 파일·빌드 PASS. 출력은 `logs/test-results/phase5-20261023/check.txt`. `npm run scenarios:check`: 최초 평가 30개·개발 10개와 동결 해시 유지 PASS. 저장된 실행·검수 파일에 설정된 API 키와 작업자 ID 패턴이 없는지도 확인했다.
+- 최초 확인·개발용 반복을 포함한 API 실행 7묶음, 시나리오 실행 101건의 예상 비용 합계는 **8.177732달러**, 동결 평가 두 묶음만의 합계는 **5.446728달러**다. 토큰 단가로 계산한 추정치이며 청구 내역을 조회한 값은 아니다.
 
 ---
 
@@ -310,19 +422,32 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - Phase 2 동결 시나리오와 잠금 파일.
 - Phase 4 서버 (`--toolset fine | coarse`).
 - Phase 1 `answer_key.json`.
-- npm: `@anthropic-ai/sdk`, `@modelcontextprotocol/sdk`(클라이언트), `dotenv`.
+- npm: `@anthropic-ai/sdk` 1.1.0, `@modelcontextprotocol/client` 2.3.1을 실행 의존성으로 사용한다. Node 24 기본 기능으로 `.env`를 읽으므로 `dotenv`는 필요 없다.
 - Anthropic API 키. API 사용 비용이 든다.
 
 ---
 
 ## 개발 시 주의사항
+
+### Opus 5.5 추가 비교 계획 (미실행)
+
+- 기존 Sonnet 5.5 기준에 `claude-opus-5-5`를 추가한다. 먼저 같은 coarse 도구 4개와 동결 질문 30개로 모델을 비교하며, 기존 Sonnet의 fine/coarse 실험은 별도로 보존한다.
+- DB·질문·도구 설명·공개 참고자료·채점 기준·실행 한도를 맞춘다. 모델별 thinking/effort 설정과 실제 단가를 기록한다. 사람 검수를 거친 답변 품질, 지표 누락, 모델·도구 호출 횟수, 시간, 입력·출력 토큰, 예상 총비용과 정답 한 건당 비용을 비교한다. 최초 비교는 기존 결과와 같은 N=1로 시작하며 안정성 판단에는 반복 실행이 필요하다.
+- 유료 평가 전에 API 호환성과 단가를 확인하고 D01–D10을 실행한 뒤 Opus용 동결 기록을 만든다. 현재 동결 검사는 두 도구 구성의 개발용 실행 완료를 요구하며 모델도 고정하므로 `.env`만 바꿔 Sonnet 동결 기록을 재사용할 수 없다. Opus는 아직 내장 단가표에 없으므로 확인한 입력·출력 단가를 명시해야 한다.
+- 현재 요약기는 같은 모델의 도구 구성 비교를 지원한다. 서로 다른 모델의 비교 보고서는 추가 예정이며, 모델별 단가 차이는 허용하고 나머지 공통 조건을 확인해야 한다. 원래 결과는 보존하고 동결 평가의 실패를 보고 도구 설명을 조정하지 않는다. 공통 프롬프트나 한도가 바뀌면 두 모델을 새 조건으로 다시 평가한다.
+- 완료 기준: Opus 실행 기록·사람 검수·모델 비교임을 명확히 구분한 보고서가 있다. 이번 문서 갱신에서는 실험을 실행하거나 사용 모델을 바꾸지 않는다.
+
+### 모델 지원 종료 대응 (운영 계획)
+
+모델 ID는 `ANTHROPIC_MODEL` / `--model`로 교체할 수 있게 유지한다. 공식 종료 공지를 확인하고 기존 개발·평가 질문으로 대체 모델을 검증한다. SDK·요청 형식 호환성과 새 토큰 단가를 확인한 뒤 종료 전에 설정을 전환한다. MCP 서버와 SQLite 로직은 재사용한다. 과거 대화·모델 ID·설정·단가는 비교 근거로 보존하며, 모델이 종료되어도 저장된 결과는 읽을 수 있다. 대체 경로는 사전 검증했고 아직 지원되는 모델에만 연결한다. 종료 자동 감시와 자동 대체 기능은 아직 구현하지 않았다.
+
+2026-10-23 확인한 공식 자료: [모델 지원 주기](https://platform.claude.com/docs/en/about-claude/model-deprecations), [고정 모델 ID](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions), [Opus 5.5 호환성·요금](https://platform.claude.com/docs/en/models/opus-5-5/overview).
+
 - **완료 기준:**
   - 평가용 30개를 모델을 고정해 두 도구 세트로 N번씩 실행했다.
   - 모든 실행을 검수했다.
   - `eval/summary.json`과 시나리오별 기록이 있고 기록 형식 검사를 통과한다.
-- **이 Phase 시작 때 정할 것** (기획서 10장):
-  - 반복 횟수 N
-  - 크게 묶은 버전의 구성 (Phase 4에서 정하지 않았다면)
+- **최초 실행 조건:** `claude-sonnet-5-5`, N=1, coarse 4개와 fine 10개, 동일한 공개 참고자료 문맥. N=1은 실행 간 변동성을 측정하지 못하며 CLI에서 반복 횟수를 늘리면 회차별 결과를 따로 집계한다.
 - **비용을 먼저 확인한다.** 평가 실행 전에 개발용 실행으로 토큰을 추정한다: 30 × N × 2회.
 - **실행기는 Claude 데스크톱이 아니다.** 자체의 짧은 시스템 프롬프트를 쓰고 화면이 없어서 확정 폼(Phase 7)은 범위 밖이다. 변경 요청 시나리오는 설계상 초안에서 끝난다.
 - **붙여넣기 방식 비교**(기획서 3-5)는 개발 완료 후 별도 테스트이며, 이 Phase에 포함하지 않는다.
@@ -335,3 +460,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 |---|---|
 | 2026-10-21 | 최초 작성 |
 | 2026-10-23 | 구현된 Phase 2 잠금, 턴별 체크포인트, 상태·의미 기준 연결 계획 반영. 실행기·채점기 구현은 미착수 유지. |
+| 2026-10-23 | Phase 4 실행용 복사본 표시 파일, 기본 coarse 4개·fine 10개와 호출 mode 기록 조건 연결. 모델 평가·실행기 구현은 미착수 유지. |
+| 2026-10-23 | 실행기·기록·채점·DB 변화·검수·동결 검사·요약 구현, 신규 테스트 30개와 실제 개발용 평가 진행. 관측한 수정 내용을 기록했다. dev-log 스킬 미설치로 별도 로그 대신 이 변경 이력에 기록한다. |
+| 2026-10-23 | 두 최종 개발용 세트 이후 동결, 실제 평가 30 × 1 × 2 완료. 자동 실패가 있는 기록 3건을 보존하고 사람 검수 양식 60건과 동일 조건 비교를 생성했다. 최종 정답률은 미확정 상태로 유지한다. |
+| 2026-10-23 | 도구 4개로 Opus 5.5와 Sonnet을 비교하는 계획, 동결·단가·보고서 선행 작업과 모델 지원 종료 대응을 기록하고 영문·국문 README를 동기화했다. Opus 실행은 아직 진행하지 않았다. |

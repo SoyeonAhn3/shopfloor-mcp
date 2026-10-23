@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261023T072759542Z-dev-coarse-5f9cf680",
+  "set": "dev",
+  "toolset": "coarse",
+  "model": "claude-sonnet-5-5",
+  "descriptionsHash": "e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2",
+  "policyHash": "177dab78757c6029008a307af196f243a517910ccbef1142626b98dfe09dc9a9",
+  "scenarioSetHash": "5dece13862bf8d09dd6c4e326213abd33e19318ead54b9a2d84d646bcca0d5a1",
+  "frozenEvalHash": "e27c7b66cda9894b60c71d6db52737647f4ade8a6cd936ae505e4b973054cb3f",
+  "datasetVersion": "ds-0b8c68a7-6313-40a3-b958-04e6b99820c0",
+  "selectedIds": [
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "D05",
+    "D06",
+    "D07",
+    "D08",
+    "D09",
+    "D10"
+  ],
+  "repeat": 1,
+  "recordFiles": [
+    "D01-r1.json",
+    "D02-r1.json",
+    "D03-r1.json",
+    "D04-r1.json",
+    "D05-r1.json",
+    "D06-r1.json",
+    "D07-r1.json",
+    "D08-r1.json",
+    "D09-r1.json",
+    "D10-r1.json"
+  ],
+  "status": "completed",
+  "stopReason": null,
+  "startedAt": "2026-10-23T07:27:59.543Z",
+  "finishedAt": "2026-10-23T07:29:35.403Z",
+  "estimatedCostUsd": 0.598226
+}
