@@ -15,7 +15,7 @@ export interface AnswerKey {
   E5: { lineId: LineId; productionDate: string; target: 0; status: 'planned_stop'; verdict: 'not_anomaly' };
   E6: { lineId: LineId; productionDate: string; missingSlots: string[]; verdict: 'no_data' };
   E7: { lineId: LineId; productionDate: string; durationMin: number; slotMinutes: Record<string,number> };
-  E8: { downtimeId: string; verdict: 'must_not_follow' };
+  E8: { downtimeId: string; lineId: LineId; productionDate: string; verdict: 'must_not_follow' };
   E9: { plannedMinutes: 40; adjustedTargets: Record<LineId,number> };
   lookups: Record<string,number|string>;
 }

@@ -4,7 +4,7 @@
 
 > Claude가 생산 현황 질문에 서버가 계산한 수치와 추적 가능한 근거로 답하고, 사람이 확인한 뒤에만 이슈를 등록하는 MCP 서버
 
-**현재 상태: Phase 1 완료.** TypeScript 기반, SQLite 데이터 생성기, 독립 정답표, 검증 규칙 17개를 구현했습니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. MCP 연결은 Phase 4에서 구현합니다.
+**현재 상태: Phase 1~3 완료.** SQLite 데이터, 독립 정답표, 검증 규칙 17개, 평가용 시나리오 30개·개발용 10개와 서버 내부 로직을 구현했습니다. 일반화한 기간 처리, 집계·분석, 감사 기록과 권한·트랜잭션을 적용한 초안·확정 기능을 제공합니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. MCP 연결은 Phase 4에서 구현하며 AI 평가는 아직 실행하지 않았습니다.
 
 ## 개요
 
@@ -55,7 +55,7 @@ Phase 1은 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest�
 
 ## AI 구성 요소
 
-아래는 구현 예정인 서버의 동작입니다. Phase 1에서는 AI 서비스를 호출하지 않습니다.
+아래의 서버 계산과 보호 장치는 Phase 3에서 구현했습니다. AI/MCP 연결은 Phase 4 계획이며 현재 코드는 AI 서비스를 호출하지 않습니다.
 
 ### 역할 분담
 
@@ -113,14 +113,32 @@ npm run validate -- --db data/run-02/production.db --json
 
 설정은 [config/generator.config.json](config/generator.config.json)에서 수정하거나 `generate`에 `--config 경로`로 전달합니다. 검증은 기본적으로 DB 옆의 설정 스냅샷을 사용하므로 원본 설정을 수정해도 예전 생성본의 검증 기준이 바뀌지 않습니다. 생성 파일 묶음은 Git에서 제외하며, DB와 정답표를 함께 다시 만듭니다.
 
-`npm run check`는 타입 검사, 테스트 37개, 빌드를 순서대로 실행합니다. 사건별 수치, 잘못된 데이터, 날짜 경계, 롤백, 생성본 식별을 검증하며 2026-10-21 모두 통과했습니다. 각각 실행하려면 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드 후에는 Node.js로도 실행할 수 있습니다.
+`npm run check`는 타입 검사, 파일 9개의 테스트 114개, 빌드를 실행하며 2026-10-23 모두 통과했습니다. 독립 정답과 사건·주간 계산, 다양한 기간과 윤년, 상태 6가지, 손실 등식, 권한, 근거, 저장 실패 취소, 동시 확정, 생성본 식별과 동결 무결성을 검증합니다. core 테스트는 일치하는 동결 생성본이 있으면 복사하고, 새 체크아웃에는 별도 테스트 데이터를 생성합니다. 개별 실행은 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드된 생성기·검증기는 Node.js로도 실행할 수 있습니다.
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
 node dist/validator/index.js --db data/run-03/production.db
 ```
 
-Claude 데스크톱 연결 방법은 Phase 4에서 추가합니다.
+Phase 2의 질문 목록과 채점 규칙은 [eval/scenarios/README.md](eval/scenarios/README.md)에 있습니다. 현재 작업 폴더에서는 `npm run scenarios:check`가 동결한 `data/phase2/` 생성본을 검사합니다. 기존 `data/` 생성본은 보존했습니다. 새 체크아웃에는 생성 파일이 없으므로, 사용하지 않은 폴더에 생성한 뒤 잠금을 명시적으로 다시 연결합니다. 이 작업은 평가 식별값을 바꾸며 CHANGE 기록을 남깁니다.
+
+```sh
+npm run generate -- --out-dir data/phase2
+npm run scenarios:freeze -- --dataset-dir data/phase2 --reason "Bind a newly generated local dataset"
+npm run scenarios:check
+```
+
+원래 식별값을 유지하려면 일치하는 생성본 복사본을 `npm run scenarios:check -- --dataset-dir path/to/copy`로 검사합니다. 기존 잠금은 사유 없이 덮어쓸 수 없습니다. 해시와 생성본 연결은 [Phase 2](Phase/Phase2_EvaluationScenarios.md)에 설명했습니다. Claude 데스크톱 연결 방법은 Phase 4에서 추가합니다.
+
+구현한 서버 로직은 AI 연결 없이 실행할 수 있습니다. 명령이 임시 DB 복사본에서 조회·감사 기록을 수행하고 종료 후 복사본을 정리합니다.
+
+```powershell
+npm run core:demo
+npm run core:demo -- --period '{"kind":"recent","unit":"weeks","count":4}'
+npm run core:demo -- --period '{"kind":"week_day","weeksAgo":1,"weekday":3}'
+```
+
+기본값은 `data/phase2/production.db`의 지난달이며 `--db`로 다른 원본을 지정할 수 있습니다. 특정 월, 최근 N일·주·개월, 완료된 달력 주, 상대 주차의 요일과 직접 지정한 날짜·범위를 지원합니다. `--compare-to`에 다른 기간 JSON을 넣으면 비교합니다. 미입력은 상태로 표시하며 해당 구간은 관측 합계·목표에서 제외합니다. 기간별 의미와 TypeScript 호출 방법은 [Phase 3](Phase/Phase3_CoreLogic.md)에 있습니다.
 
 ## 프로젝트 구조
 
@@ -133,8 +151,8 @@ shopfloor-mcp/
 │   └── 01a_production-mcp-dataset.md  # 데이터셋 설계서 (데이터 아키텍처, 테이블, 정답 사건)
 ├── Phase/
 │   ├── Phase1_Foundation.md           # ✅ 완료
-│   ├── Phase2_EvaluationScenarios.md  # 🔲 미시작
-│   ├── Phase3_CoreLogic.md            # 🔲 미시작
+│   ├── Phase2_EvaluationScenarios.md  # ✅ 완료
+│   ├── Phase3_CoreLogic.md            # ✅ 완료
 │   ├── Phase4_McpServer.md            # 🔲 미시작
 │   ├── Phase5_Evaluation.md           # 🔲 미시작
 │   ├── Phase6_ResultReplayPage.md     # 🔲 미시작
@@ -143,10 +161,14 @@ shopfloor-mcp/
 ├── src/
 │   ├── shared/                       # 행 타입, 시각 함수, 코드 표시명
 │   ├── generator/                    # SQLite 스키마와 데이터 생성
-│   ├── answer-key/                   # 독립적인 사건별 집계
+│   ├── answer-key/                   # 독립적인 사건·주간 집계
+│   ├── eval/                         # 시나리오 형식, 로딩, 동결 검사
+│   ├── core/                         # 검증된 조회, 집계·분석, 감사 기록과 이슈
 │   └── validator/                    # V01~V17과 CLI
-├── tests/                            # 파일 4개, 테스트 37개
-├── scripts/copy-assets.mjs           # 빌드 시 SQL 스키마를 dist/로 복사
+├── eval/scenarios/                   # 평가용 30개·개발용 10개 JSON, 잠금, 질문 목록
+├── tests/                            # 파일 9개, 테스트 114개
+├── scripts/                          # 리소스 복사, 시나리오 동결, core 실행 예제
+├── resources/anomaly-criteria.md     # 코드와 대조하는 정상 규칙 기반 이상 판단 기준
 ├── data/                             # 생성 파일 묶음, Git 제외
 ├── package.json
 ├── package-lock.json
@@ -166,8 +188,8 @@ shopfloor-mcp/
 |---|---|---|
 | Phase 0 — 기획 | ✅ 완료 | 기획서 + 데이터셋 설계서 (테이블 11개, 정답 사건 9개, 정답표 명세) |
 | Phase 1 — 개발 기반 | ✅ 완료 | TypeScript 프로젝트, 데이터 생성기 (테이블 11개, 69,835행), 정답표, 검증 규칙 17개, 테스트 37개 통과 |
-| Phase 2 — 평가 시나리오 | 📋 예정 | 동결한 평가용 시나리오 30개 (8개 유형) + 개발용 시나리오 10개 |
-| Phase 3 — 서버 내부 로직 | 📋 예정 | 기간 해석, 상태 6가지, 계산, 근거 번호, 감사 기록, 초안과 확정 로직 (MCP 없이) |
+| Phase 2 — 평가 시나리오 | ✅ 완료 | 평가용 30개 동결·개발용 10개, 주간 비교, 형식·참조 검사, 생성본 연결 잠금 |
+| Phase 3 — 서버 내부 로직 | ✅ 완료 | 일반화한 기간, 상태 6가지, 집계·비교·분석, 감사 기록이 있는 호출 경로, 초안·확정 보호, 테스트 63개 추가와 CLI |
 | Phase 4 — MCP 서버 | 📋 예정 | Claude가 부르는 도구 10개 / 리소스 4개 / 프롬프트 2개, 잘게 나눈 버전과 크게 묶은 버전 |
 | Phase 5 — 평가 | 📋 예정 | 평가 실행기, 개발용 시나리오로 도구 설명 개선, 시나리오 30개 평가, 도구 세트 비교 |
 | Phase 6 — 결과 재생 페이지 | 📋 예정 | GitHub Pages 정적 페이지 |
@@ -185,7 +207,7 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 개발 2단계입니다. 상�
 
 ## 한계점
 
-- Phase 1의 데이터 생성·검증을 제공합니다. 서버 계산, MCP 도구, AI 평가, 화면은 이후 Phase에서 구현합니다.
+- Phase 1~3의 데이터, 동결 평가 질문과 검증된 서버 로직을 제공합니다. MCP 도구, AI 평가와 화면은 이후 Phase에서 구현합니다. 자연어 해석은 이후 AI 클라이언트가 맡고 core는 구조화한 기간·필터를 받습니다.
 - 생산 수량은 시간대별 합계입니다. 검증기는 교대 시간을 제외한 생산 가능 수량을 확인하며, 양품 하나하나의 생산 분까지 증명하지는 못합니다.
 - 가상 데이터만 사용하며, 실제 사내 시스템과 연동하지 않습니다.
 - 로컬 전용입니다. 사용자 PC에서 Claude 데스크톱이 서버를 실행하며, 원격 배포와 로그인은 없습니다.

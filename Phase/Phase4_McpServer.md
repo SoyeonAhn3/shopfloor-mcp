@@ -64,7 +64,7 @@ await server.connect(new StdioServerTransport());
 
 ### Design Decisions
 - **stdout carries MCP messages only.** With the stdio transport, logs and debug output go to stderr.
-- **The server opens a copy** (`data/run/`), never `data/production.db` itself, because drafts and audit rows are written. `npm run db:copy` makes a fresh copy.
+- **The server opens a copy** (`data/run/`) of the frozen generation (currently `data/phase2/`), because drafts and audit rows are written. The planned `npm run db:copy` will make a fresh copy; preserve dataset identity and never open the golden DB for writes.
 - **Role and user name come from the launch config** (plan §3-3). Switching role means editing the client config and restarting.
 
 ---
@@ -105,7 +105,9 @@ interface ToolResponse {
 ### Design Decisions
 - **English names, Korean descriptions** (plan §3-1). The descriptions use shop-floor terms (비가동, 계획 정지, 교대 시간), so the user's wording matches them.
 - **All descriptions live in `descriptions.ts`.** It is the tuning surface for Phase 5 dev scenarios. Changes show up as one diff, and the file hash is written into every run record.
-- **The tool layer holds no business logic.** It validates input, calls core inside `audited()`, and formats the result.
+- **Use the implemented Phase 3 public API.** `createCore(...).tools` validates, audits and protects each operation already. MCP handlers call those methods and format the result; do not add a second `audited()` wrapper. Confirmation stays outside this object. Runtime copies receive the draft-related-date migration in `RuntimeWriter`.
+- **Period inputs reuse `src/core/period.ts`.** Support relative weeks/months, trailing N days/weeks/months, completed calendar weeks, a weekday within a relative week, explicit months/dates/ranges and current periods. Distinguish “four weeks ago” from “recent four weeks”; clarify ambiguous natural-language requests. Return requested bounds, resolved production days and coverage. No line means all six lines when a period is supplied.
+- **Comparison uses existing tools.** `get_production` forwards `compareTo` for overall/per-line totals and changes. `get_defects` forwards `compareTo` and optional `comparisonExcludeDates` for same-hour baseline comparisons. Core calculates all numeric changes; `compare_lines` remains a line comparison. Preserve fraction/percent/percentage-point units when formatting.
 - **Errors are recoverable.** Errors set `isError: true` and say what failed and what is possible: valid line IDs, the available range, or which role is required.
 
 ---
@@ -197,6 +199,8 @@ claude mcp add shopfloor -- node dist/server/index.js --db data/run/production.d
 | Date | Description |
 |---|---|
 | 2026-10-21 | Initial creation |
+| 2026-10-23 | Carry frozen Phase 2 scope/metric defaults and period-comparison requirements into the tool input plan. No tool descriptions or server code were implemented. |
+| 2026-10-23 | Connect the completed Phase 3 public API, generic period schema, defect comparison and runtime migration; avoid double auditing. MCP implementation remains pending. |
 
 ---
 ---
@@ -246,7 +250,7 @@ Claude 데스크톱이나 Claude Code가 실행하는 로컬 프로세스로 서
 
 ### 설계 결정 사항
 - **stdout에는 MCP 메시지만 보낸다.** stdio 연결이므로 로그와 디버그 출력은 stderr로 보낸다.
-- **서버는 복사본(`data/run/`)을 연다.** 초안과 감사 기록을 쓰므로 `data/production.db` 원본은 열지 않는다. `npm run db:copy`로 새 복사본을 만든다.
+- **서버는 동결 생성본(현재 `data/phase2/`)의 복사본(`data/run/`)을 연다.** 초안과 감사 기록을 쓰므로 원본에는 쓰지 않는다. 구현 예정인 `npm run db:copy`가 생성본 식별값을 유지한 복사본을 만든다.
 - **역할과 사용자 이름은 실행 설정에서 정한다** (기획서 3-3). 역할을 바꾸려면 클라이언트 설정을 고치고 다시 시작한다.
 
 ---
@@ -262,7 +266,9 @@ Claude 데스크톱이나 Claude Code가 실행하는 로컬 프로세스로 서
 ### 설계 결정 사항
 - **이름은 영어, 설명은 한국어다** (기획서 3-1). 설명에 현장 용어(비가동, 계획 정지, 교대 시간)를 써서 사용자의 표현과 맞물리게 한다.
 - **도구 설명은 모두 `descriptions.ts` 한 파일에 둔다.** Phase 5에서 개발용 시나리오로 다듬는 대상이다. 바뀐 내용이 diff 하나로 보이고, 파일 해시를 실행 기록마다 남긴다.
-- **도구 계층에는 업무 규칙이 없다.** 입력을 검증하고, `audited()` 안에서 core를 부르고, 결과를 포맷하기만 한다.
+- **구현된 Phase 3 호출 경로를 사용한다.** `createCore(...).tools`가 입력 검증·감사 기록·정보 보호를 처리한다. MCP 처리기는 이 메서드를 부르고 결과를 포맷하며 `audited()`로 다시 감싸지 않는다. 확정은 이 객체 밖에 유지한다. `RuntimeWriter`가 실행용 복사본에 초안 생산일 열을 추가한다.
+- **기간은 `src/core/period.ts` 스키마를 재사용한다.** 상대 주·월, 최근 N일·주·개월, 완료된 달력 주, 상대 주차의 특정 요일, 특정 월·날짜·범위와 현재 기간을 지원한다. “4주 전”과 “최근 4주”를 구분하고 모호한 문장은 되묻는다. 요청 범위·실제 생산일·누락 상태를 함께 반환한다. 기간을 지정하고 라인을 생략하면 전체 6라인을 조회한다.
+- **기존 도구로 기간 비교를 연결한다.** `get_production`의 `compareTo`는 전체·라인별 합계와 증감을 계산한다. `get_defects`의 `compareTo`, `comparisonExcludeDates`는 같은 시간대의 다른 날짜와 불량률을 비교한다. 계산은 core가 맡고 `compare_lines`는 라인 비교로 유지한다. 표시 단계에서 비율·%·%p 단위를 보존한다.
 - **오류는 복구할 수 있게 안내한다.** `isError: true`와 함께 무엇이 잘못됐는지, 무엇이 가능한지(올바른 라인 ID, 조회 가능 범위, 필요한 역할)를 알려준다.
 
 ---
@@ -334,3 +340,5 @@ Claude에게 참고 자료와 메뉴 템플릿 2개를 준다 (기획서 3-1).
 | 날짜 | 내용 |
 |---|---|
 | 2026-10-21 | 최초 작성 |
+| 2026-10-23 | 동결한 Phase 2의 대상·지표 기본값과 기간 비교 요구사항을 도구 입력 계획에 반영. 도구 설명과 서버 코드는 미구현 유지. |
+| 2026-10-23 | 완료한 Phase 3 호출 경로·일반 기간 스키마·불량 비교·실행용 스키마 변경을 연결하고 감사 중복을 방지하도록 계획 갱신. MCP 구현은 미착수 유지. |

@@ -11,6 +11,9 @@
   "scripts": {
     "generate": "tsx src/generator/index.ts",
     "validate": "tsx src/validator/index.ts",
+    "scenarios:freeze": "tsx scripts/freeze-scenarios.ts",
+    "scenarios:check": "tsx scripts/freeze-scenarios.ts --check",
+    "core:demo": "tsx scripts/demo-core.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
     "test": "vitest run",

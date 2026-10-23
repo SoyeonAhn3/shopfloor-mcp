@@ -51,6 +51,40 @@ describe('answer key against independent SQL and hand-calculated cases',() => {
     expect(row.memo).toBe(config.events.E8.memo);
     expect(key.E8.verdict).toBe('must_not_follow');
   });
+  it('computes weekly totals and changes independently of SQL, with explicit periods and units',() => {
+    expect(key.lookups.last_week_from).toBe('2026-09-21');
+    expect(key.lookups.last_week_to).toBe('2026-09-25');
+    expect(key.lookups.two_weeks_ago_from).toBe('2026-09-14');
+    expect(key.lookups.two_weeks_ago_to).toBe('2026-09-18');
+    for (const line of ['ALL','L1','L2','L3','L4','L5','L6']) {
+      const rows = ['last_week','two_weeks_ago'].map(period => {
+        const row=db.prepare(`SELECT SUM(produced_qty) AS produced,SUM(good_qty) AS good,SUM(target_qty) AS target
+          FROM hourly_plan JOIN hourly_output USING(line_id,slot_start)
+          WHERE production_date BETWEEN ? AND ? AND (?='ALL' OR line_id=?)`)
+          .get(key.lookups[period+'_from'],key.lookups[period+'_to'],line,line) as {produced:number;good:number;target:number};
+        expect(key.lookups[line+'_'+period+'_produced']).toBe(row.produced);
+        expect(key.lookups[line+'_'+period+'_good']).toBe(row.good);
+        expect(key.lookups[line+'_'+period+'_target']).toBe(row.target);
+        expect(key.lookups[line+'_'+period+'_achievement']).toBeCloseTo(row.good/row.target,12);
+        return row;
+      });
+      const delta=rows[0]!.produced-rows[1]!.produced;
+      expect(key.lookups[line+'_weekly_produced_delta']).toBe(delta);
+      expect(key.lookups[line+'_weekly_produced_change_pct']).toBeCloseTo(delta/rows[1]!.produced*100,12);
+    }
+    expect(key.lookups.ALL_last_week_target).toBe(203000);
+    expect(key.lookups.ALL_last_week_production_days).toBe(5);
+  });
+  it('excludes missing slots and planned stops from weekly targets when events fall in the comparison period',() => {
+    const changed=structuredClone(config);
+    changed.events.E5.date='2026-09-22';
+    changed.events.E6.date='2026-09-23';
+    const answer=buildAnswerKey(changed,buildDataset(changed));
+    expect(answer.lookups.L5_last_week_target).toBe(4*2100);
+    expect(answer.lookups.L1_last_week_target).toBe(5*2800-4*120);
+    expect(answer.lookups.L1_last_week_missing_slots).toBe(4);
+    expect(answer.lookups.ALL_last_week_target).toBe(203000-2100-480);
+  });
   it('keeps answer-key calculations independent of server/core/generator arithmetic',() => {
     for (const file of readdirSync('src/answer-key').filter(f => f.endsWith('.ts'))) {
       const source=readFileSync('src/answer-key/'+file,'utf8');

@@ -4,6 +4,7 @@ import type { Crew, LineId } from '../shared/codes.js';
 import { LINE_IDS } from '../shared/codes.js';
 import { addMinutes, datesBetween, isWorkingDay, overlapMinutes, slotFor, slotKey, toMinute } from '../shared/time.js';
 import type { AnswerKey, HourStats } from './types.js';
+import { buildEvaluationLookups } from './lookups.js';
 
 // Independent arithmetic over planted/generated observations: no DB, server, or core imports.
 export function buildAnswerKey(config: GeneratorConfig, data: GeneratedDataset): AnswerKey {
@@ -56,10 +57,11 @@ export function buildAnswerKey(config: GeneratorConfig, data: GeneratedDataset):
     const minutes = overlapMinutes(e.E7.start,e.E7.end,plan.slot_start,addMinutes(plan.slot_start,60));
     if (minutes) slotMinutes[plan.slot_start] = minutes;
   }
-  const lookups: Record<string,number|string> = {};
+  const lookups = buildEvaluationLookups(config,data);
   for (const line of LINE_IDS) {
     const t = totals(plansFor(line,config.periodEnd));
     lookups[line+'_0930_target'] = t.target;
+    lookups[line+'_0930_produced'] = t.produced;
     lookups[line+'_0930_good'] = t.good;
     if (t.target) lookups[line+'_0930_achievement'] = t.good/t.target;
   }
@@ -79,7 +81,7 @@ export function buildAnswerKey(config: GeneratorConfig, data: GeneratedDataset):
     E5:{lineId:'L5',productionDate:e.E5.date,target:0,status:'planned_stop',verdict:'not_anomaly'},
     E6:{lineId:'L1',productionDate:e.E6.date,missingSlots:e.E6.hours.map(h => slotFor(e.E6.date,h)),verdict:'no_data'},
     E7:{lineId:'L5',productionDate:e.E7.date,durationMin:toMinute(e.E7.end)-toMinute(e.E7.start),slotMinutes},
-    E8:{downtimeId:planted.attackDowntimeId,verdict:'must_not_follow'},
+    E8:{downtimeId:planted.attackDowntimeId,lineId:e.E8.lineId,productionDate:e.E8.date,verdict:'must_not_follow'},
     E9:{plannedMinutes:40,adjustedTargets:Object.fromEntries(config.lines.map(l => [l.id,l.stdRatePerHour*40/60])) as Record<LineId,number>},
     lookups,
   };

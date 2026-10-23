@@ -50,7 +50,7 @@ Execute a scenario the same way every time and keep everything needed to grade a
 ```
 for each scenario:
   scenarios:check (eval set only) → refuse if the lock does not match
-  copy data/production.db → tmp/<runId>/<scenarioId>.db
+  copy the lock-bound dataset DB (currently data/phase2/production.db) → tmp/<runId>/<scenarioId>.db
   spawn server (stdio): --db <copy> --role <scenario.role> --toolset <X>
   MCP client: listTools → Anthropic tool definitions
   for each user turn:
@@ -83,6 +83,7 @@ interface RunRecord {
 - **The runner is the MCP client, rather than an automated Claude Desktop.** Runs are scriptable and repeatable, and the server binary is the same one Claude Desktop runs.
 - **Fixed run conditions** (plan §3-5). The runner uses a short system prompt with its hash recorded. The model ID is pinned per run and written into every record.
 - **A fresh DB copy per scenario** (principle ⑤). Earlier scenarios therefore never trigger the duplicate check in later ones, and "issues unchanged" is read from `dbDiff`.
+- **Use the Phase 2 contract.** Call `checkScenarios()` before eval and use the matching locked answer key. Send only `turns` to the model. Grade final/whole-run `expect`, earlier one-based `checkpoints`, tool-result `expectedStatus` and semantic `reviewCriteria`; per-turn actions use only the transcript prefix through that turn. Percent-change lookups use percent units; achievement lookups are fractions.
 - **The API key is read from `.env`** (`ANTHROPIC_API_KEY`, git-ignored). `.env.example` is committed without values.
 - **The runner asserts that no worker-ID pattern appears in any record** before writing it.
 
@@ -188,6 +189,7 @@ npm run eval:summary
 | Date | Description |
 |---|---|
 | 2026-10-21 | Initial creation |
+| 2026-10-23 | Reference the implemented Phase 2 lock, per-turn checkpoints, status and semantic criteria. Runner/grader implementation remains pending. |
 
 ---
 ---
@@ -282,6 +284,8 @@ npm run eval:summary
 
 ## 평가 실행과 도구 세트 비교 (예정)
 
+Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사하고, 잠금에 연결된 생성본(현재 `data/phase2/production.db`)과 정답표를 사용한다. 모델에는 `turns`만 보낸다. 마지막 답변·전체 실행의 `expect`, 1부터 시작하는 이전 턴의 `checkpoints`, 도구 결과의 `expectedStatus`, 의미 기준 `reviewCriteria`를 채점기에 반영해야 한다. 체크포인트 행동 검사는 해당 턴까지의 기록만 사용한다. 증감률 정답은 백분율, 달성률 정답은 비율이다.
+
 ### 목적
 핵심 결과를 만든다. 동결한 30개 시나리오에서 잘게 나눈 버전과 크게 묶은 버전의 정확도와 안전성을 낸다.
 
@@ -330,3 +334,4 @@ npm run eval:summary
 | 날짜 | 내용 |
 |---|---|
 | 2026-10-21 | 최초 작성 |
+| 2026-10-23 | 구현된 Phase 2 잠금, 턴별 체크포인트, 상태·의미 기준 연결 계획 반영. 실행기·채점기 구현은 미착수 유지. |

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "hashEncoding": "utf8-lf",
+  "frozenAt": "2026-10-23T01:08:37.457Z",
+  "datasetDirectory": "data/phase2",
+  "datasetVersion": "ds-0b8c68a7-6313-40a3-b958-04e6b99820c0",
+  "answerKeySha256": "9e40fe10dc20ee2ba03d138de048cd70c79fa3514ba81feec053fd05c71c892e",
+  "files": {
+    "S01.json": "0f0119eef1461b00919629d29af76ffc303e46e3c48695db9afc1ea7d9a610ab",
+    "S02.json": "c9e658f0c8ef53b23d130b958e0eb835bdf27ffdfb01d32317e1cc3b1e8e8d57",
+    "S03.json": "7bb3fa7c1e32b661133081bf0bf8b08ac0fa1286cf2a6de6c95e5d79bd41459d",
+    "S04.json": "9d55856fdf4409e4b513b44f28e9f2e7e36d0855343b246533ea3b2564457b5d",
+    "S05.json": "6ca4e03f82efb4d18b4955ebb45114cb1492b6105066e87fa84f597ff9caceec",
+    "S06.json": "6c87b42add2fe124f55df98715ff3c721a0141a9be27e0b1c344253b17e18f6e",
+    "S07.json": "96de2456a5b15967f2550b10324be91388480061fc5babce26e50ab47a11f62c",
+    "S08.json": "dd035d8951897efcf0a83200582a0f43b1f626e37221777423e86b70c21337a8",
+    "S09.json": "863a690c5ddc093bd9f90be66e9826c567f5e4f925d1e79d261bd554a76715a5",
+    "S10.json": "97c125a9248e68134395376ca3494f83bc305e8a36e6c80e0db9691ec790bf48",
+    "S11.json": "17635f5956cc8facb81605e2715e1ab2e6f40289584c0859f46e9e603c2920aa",
+    "S12.json": "a2efa85c9ea705e89b0b2d3cbcbf5c518fde98215042450c06dba9ccc9230bd0",
+    "S13.json": "1a72bc67f172a986d58a38abe308f538792e20456363d4f58e1019af302d4e4e",
+    "S14.json": "0156ef43faac11a20852ce3b1d26945a750df796a88acc2c874b419965a15ddd",
+    "S15.json": "7e9dfbc0dd850ff507a84591abebedc4016fbe84f61226720a373f38744606a0",
+    "S16.json": "42cd3f428081d5f87b0c7431d20c476c922c8fb4496cc53261237bada6606e71",
+    "S17.json": "57f65101ca85e1ae006563ea43de03973b48987a632648ded21f38ff47110185",
+    "S18.json": "4295c226676cd15896bfa4198fcd2bc186c85f323f07f3a38114fa4b865ec53f",
+    "S19.json": "a04093d5a569641e4207839869ef5cf8342b17b71492fcf4044eb9cc2f2ddd99",
+    "S20.json": "751158b8ebc9f4aacbe66a9c2ca64e82d4a35d218fd9f4c3d7ea5c9050ff84be",
+    "S21.json": "701f3b83e7bc7af56f1ef4ff199f724f7a190ca95ec364320d376cd04f71ca5f",
+    "S22.json": "06903804b980606172e4404983ec9b140b2bd908bc5c8da776dedf99e56db11c",
+    "S23.json": "f6c76d05b5cb55f00ad16f3ec7a8ac6fabddc64790c37f67de5a39181ce72825",
+    "S24.json": "0c2e2fcb8cc4d320442e92cd2df1a3040680820844c756ae320aad8892b941a3",
+    "S25.json": "16a35ff015557c48eea4fa040c565c37f76ed1fef84f258b2f7bf8f743d5a587",
+    "S26.json": "1a63172afd6e81ab51ac8f4e9ea0ce7adaef7a7a47db697a80920b4e7964a696",
+    "S27.json": "c79e905b961926818b569c25cc35e3d0d59f8fa2dd7b6e357c3e38d5f2f2dc01",
+    "S28.json": "c60c4cfd627b44de4859e3e3d869a45e7bac466630ff08d3fd94526646a9a6fc",
+    "S29.json": "b63cb3a849b431197fd4f97cac2c1c80f4f8b0d398293103f513fa24c486ae43",
+    "S30.json": "ae6d50290fe341603a4cde084775b4c8764aebcd2142c8a4c1c43bd3d6d38288"
+  },
+  "setHash": "e27c7b66cda9894b60c71d6db52737647f4ade8a6cd936ae505e4b973054cb3f",
+  "history": [
+    {
+      "eventType": "CHANGE",
+      "at": "2026-10-23T01:08:37.457Z",
+      "reason": "Initial Phase 2 freeze",
+      "before": null,
+      "after": {
+        "setHash": "e27c7b66cda9894b60c71d6db52737647f4ade8a6cd936ae505e4b973054cb3f",
+        "datasetVersion": "ds-0b8c68a7-6313-40a3-b958-04e6b99820c0"
+      }
+    }
+  ]
+}
