@@ -1,7 +1,7 @@
 ---
 name: dev-log
 version: 1.1
-description: MS 업무자동화 CLI 에이전트 개발 중 발생하는 에러, 수정 이유, 변경 내역을 JSONL 형식으로 기록하고 조회한다. "로그 남겨줘", "변경 이유 기록해줘", "에러 기록해줘", "로그 조회해줘" 등의 요청 시 트리거한다.
+description: 개발 중 발생하는 에러, 수정 이유, 변경 내역을 JSONL 형식으로 기록하고 조회한다. "로그 남겨줘", "변경 이유 기록해줘", "에러 기록해줘", "로그 조회해줘" 등의 요청 시 트리거한다.
 depends_on: []
 produces:
   - logs/dev_YYYYMMDD.jsonl

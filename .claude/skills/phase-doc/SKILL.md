@@ -3,8 +3,6 @@ name: phase-doc
 type: general
 version: 1.0
 description: 각 Phase의 상세 개발 내용을 Phase/ 디렉토리에 문서로 기록하고 갱신한다. "Phase 문서 업데이트해줘", "Phase N 상세 기록해줘", "개발 내용 문서화해줘", "Phase 완료 기록해줘" 등의 요청 시 트리거한다.
-required_environment:
-  - Python 3.8+
 depends_on:
   - dev-log
 produces:
@@ -32,7 +30,6 @@ produces:
 
 ```
 Phase/PhaseN_*.md       — 기존 문서 확인 (파일명은 영어로 작성)
-src/modules/            — 구현된 Python 모듈 확인
 .claude/skills/         — 등록된 스킬 확인
 README.md               — 전체 Phase 계획 확인
 ```

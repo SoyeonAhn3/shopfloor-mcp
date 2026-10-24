@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-eval.mjs\"",
+            "timeout": 10,
+            "statusMessage": "평가 보호 규칙 확인"
+          }
+        ]
+      }
+    ]
+  }
+}
