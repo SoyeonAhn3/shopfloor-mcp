@@ -11,6 +11,17 @@
             "statusMessage": "평가 보호 규칙 확인"
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Read|Grep|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-env.mjs\"",
+            "timeout": 10,
+            "statusMessage": "비밀 파일 보호 규칙 확인"
+          }
+        ]
       }
     ]
   }

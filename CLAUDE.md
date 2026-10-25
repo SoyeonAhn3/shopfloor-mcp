@@ -8,9 +8,10 @@ Claude가 초안까지만 만들고, 확정은 사람 버튼으로만 한다.
 ## 명령어
 - `npm run check` — typecheck + test + build. 코드 변경의 완료 기준
 - `npx vitest run tests/<area>` — 영역별 테스트 (core, server, eval ...)
-- `npm run scenarios:check` — 동결 시나리오 무결성 검사 (data/phase2 필요)
+- `npm run scenarios:check` — 동결 시나리오 무결성 검사 (data/phase2 필요). 없으면 만들지 말고 알린다.
+  생성 후 잠금 재연결은 평가 식별값을 바꾸는 재동결이다(절차는 README Phase 2)
 - `npm run mcp:demo` — AI 없이 빌드된 서버에 실제 stdio 연결해 확인
-- `npm run eval` — **유료 API 호출. hook으로 차단되어 있으며 사용자가 터미널에서 직접 실행한다**
+- `npm run eval` — **유료 API 호출. Claude는 실행하지 않고 사용자가 터미널에서 직접 실행한다** (hook은 보조 장치)
 
 ## 구조와 의존 방향
 - shared ← generator / answer-key / validator (데이터 생성·정답표·검증)
@@ -36,7 +37,7 @@ Claude가 초안까지만 만들고, 확정은 사람 버튼으로만 한다.
   실제 시각(`new Date()`)은 실행 ID·생성 시각·감사 시각 같은 기록용 타임스탬프에 쓴다.
 - 생산일은 08:00 ~ 다음 날 08:00 직전이다. 새벽 기록은 전날 생산일에 속한다.
 - 미입력은 0이 아니다. `src/core/status.ts`의 DataStatus 6개 상태를 서로 섞지 않는다.
-- 달성률 = 양품 ÷ 목표 (0~1 비율). 목표가 0이면 null과 planned_stop 상태로 반환한다.
+- 달성률 = 양품 ÷ 목표. 백분율이 아닌 비율로 반환한다(0.85 = 85%). 목표가 0이면 null과 planned_stop 상태로 반환한다.
 - 손실 분해는 항상 비가동 + 속도 + 불량 = 목표 − 양품을 만족해야 한다.
 - 범위를 벗어난 기간을 임의로 잘라서 조회하지 않는다.
 
@@ -44,20 +45,22 @@ Claude가 초안까지만 만들고, 확정은 사람 버튼으로만 한다.
 - `src/server/descriptions.ts`와 평가 프롬프트는 개발용 D01~D10 결과로만 수정한다.
   평가용 S01~S30 결과를 보고 설명·프롬프트·채점 규칙을 고치지 않는다.
 - descriptions.ts를 바꾸면 descriptionsHash가 달라져 기존 평가와 다른 조건이 된다. 바꿀 때 사용자에게 알린다.
-- `eval/scenarios/eval/`, `eval.lock.json`, `eval/description-freeze.json`은 사용자 요청 없이 수정하지 않는다.
+- `eval/scenarios/eval/`, `eval.lock.json`, `eval/description-freeze.json`, `eval/freezes/`는 사용자 요청 없이 수정하지 않는다.
   재동결할 때는 `--reason`을 남긴다.
 - 모델에는 시나리오의 `turns`만 전달한다. 정답표·expect·reviewCriteria는 채점기에서만 쓴다.
 - `eval/runs/` 기존 기록은 수정·삭제하지 않는다.
 - `eval/reviews/*.json`의 reviewer·verdict는 사람이 작성한다. Claude가 검수 완료로 표시하지 않는다.
 - 해시·잠금 검사(scenarios:check, 검수 해시, freeze 조건)가 실패하면 우회하지 말고 원인과 함께 보고한다.
-- `.claude/hooks/guard-eval.mjs`가 유료 평가 실행과 동결 기록의 직접 수정을 차단한다. 차단되면 다른 방법으로
-  우회하지 말고 사용자에게 알린다. hook과 `.claude/settings.json`은 사용자 요청 없이 수정하지 않는다.
+- 위 금지는 hook과 무관하게 지킨다. `.claude/hooks/guard-eval.mjs`는 유료 평가 실행과 동결 기록의 직접 수정을
+  보조로 차단한다. 차단되면 우회하지 말고 사용자에게 알린다. hook 파일이 없거나 hook 오류가 보이면 즉시 알린다.
+  hook과 `.claude/settings.json`은 사용자 요청 없이 수정하지 않는다.
 
 ### 데이터·파일
 - `data/`는 Git 제외 생성본이다. 기존 생성본을 덮어쓰거나 재생성하지 않고, 새로 만들 때는 새 `--out-dir`을 쓴다.
 - 원본 DB는 읽기 전용이다. 쓰기는 `db:copy`로 만든 실행용 복사본(+ `.runtime.json` 마커)에서만 한다.
 - 테스트는 `.env`를 읽거나 유료 API를 호출하지 않는다. DB는 `tests/core/fixture.ts`로 준비한다.
-- `.env`의 값(API 키)을 출력하거나 로그·기록에 남기지 않는다.
+- `.env`의 값(API 키)을 출력하거나 로그·기록에 남기지 않는다. `.claude/hooks/guard-env.mjs`가 `.gitignore`와 같은
+  기준(`.env`, `.env.*`, `*.env`, 템플릿 제외)으로 도구 접근을 차단한다. 차단되면 우회하지 말고 사용자에게 요청한다.
 
 ## 코드 관례
 - ESM + NodeNext: 상대 import에 `.js` 확장자를 붙인다.
@@ -72,6 +75,9 @@ Claude가 초안까지만 만들고, 확정은 사람 버튼으로만 한다.
 
 ## 완료 기준
 - `npm run check`가 통과해야 한다. 실패를 숨기거나 테스트를 약화시키지 않는다.
+- 알려진 환경 실패: 프로젝트 경로에 한글 등 비ASCII 문자가 있으면 Node 22의 `fs.cpSync` 크래시로
+  `tests/eval/scenarios.test.ts`가 실행되지 않는다. 그 외 실패는 실제 문제로 본다.
+  `src/eval/`의 동결·해시 코드를 바꿀 때는 ASCII 경로 복제본에서 check를 실행해 이 파일까지 확인한다.
 - 동작이 바뀌면 해당 Phase 문서와 README 갱신이 필요한지 확인한다.
 
 ## 참고 문서 (필요할 때 읽기)

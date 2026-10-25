@@ -122,7 +122,7 @@ describe('freeze and dataset binding', () => {
   it('ignores CRLF conversion but detects altered answer values and forged set hashes', () => {
     freezeScenarios(directory, dataset);
     const path = join(directory, 'eval', 'S01.json');
-    writeFileSync(path, readFileSync(path, 'utf8').replace(/\n/g, '\r\n'));
+    writeFileSync(path, readFileSync(path, 'utf8').replace(/\r?\n/g, '\r\n'));
     expect(checkScenarios(directory).evalCount).toBe(30);
     edit(join(dataset, 'answer_key.json'), value => { value.E1.durationMin++; });
     expect(() => checkScenarios(directory)).toThrow('answer key changed');
