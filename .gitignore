@@ -52,3 +52,6 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# 검수 화면 (eval:sheet로 다시 생성, 실행 기록 전체를 담고 있음)
+/eval/reviews/review-sheet.html

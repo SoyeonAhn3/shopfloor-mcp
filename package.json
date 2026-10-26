@@ -23,6 +23,7 @@
     "eval": "node dist/eval/runner.js",
     "eval:freeze": "tsx src/eval/manage.ts freeze",
     "eval:review": "tsx src/eval/manage.ts review",
+    "eval:sheet": "tsx src/eval/manage.ts sheet",
     "eval:summary": "tsx src/eval/manage.ts summary",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",

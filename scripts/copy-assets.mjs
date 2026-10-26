@@ -5,3 +5,5 @@ mkdirSync(new URL('../dist/resources/', import.meta.url), { recursive: true });
 for (const name of ['glossary', 'data-guide', 'anomaly-criteria']) {
   copyFileSync(new URL('../resources/' + name + '.md', import.meta.url), new URL('../dist/resources/' + name + '.md', import.meta.url));
 }
+mkdirSync(new URL('../dist/eval/', import.meta.url), { recursive: true });
+copyFileSync(new URL('../src/eval/review-sheet.html', import.meta.url), new URL('../dist/eval/review-sheet.html', import.meta.url));

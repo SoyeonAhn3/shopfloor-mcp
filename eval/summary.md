@@ -9,17 +9,17 @@
 | [20261023T072759542Z-dev-coarse-5f9cf680](runs/20261023T072759542Z-dev-coarse-5f9cf680/manifest.json) | dev / coarse | 10 / 10 | 2 | 10 | 0.598226 |
 | [20261023T073057831Z-dev-coarse-db939b2a](runs/20261023T073057831Z-dev-coarse-db939b2a/manifest.json) | dev / coarse | 10 / 10 | 0 | 10 | 0.570350 |
 | [20261023T073452530Z-dev-fine-78a67952](runs/20261023T073452530Z-dev-fine-78a67952/manifest.json) | dev / fine | 10 / 10 | 0 | 10 | 1.063598 |
-| [20261023T073705712Z-eval-coarse-845d6c72](runs/20261023T073705712Z-eval-coarse-845d6c72/manifest.json) | eval / coarse | 30 / 30 | 1 | 30 | 1.921032 |
-| [20261023T073937732Z-eval-fine-23f3d69f](runs/20261023T073937732Z-eval-fine-23f3d69f/manifest.json) | eval / fine | 30 / 30 | 2 | 30 | 3.525696 |
+| [20261023T073705712Z-eval-coarse-845d6c72](runs/20261023T073705712Z-eval-coarse-845d6c72/manifest.json) | eval / coarse | 30 / 30 | 1 | 0 | 1.921032 |
+| [20261023T073937732Z-eval-fine-23f3d69f](runs/20261023T073937732Z-eval-fine-23f3d69f/manifest.json) | eval / fine | 30 / 30 | 2 | 0 | 3.525696 |
 
 ## Same-condition comparisons / 같은 조건의 비교
 
-- 모델: claude-sonnet-5-5; 반복: 1; 사람 검수 완료: false
+- 모델: claude-sonnet-5-5; 반복: 1; 사람 검수 완료: true
 
 | 도구 구성 | 실행 완료 | 자동 실패 | 평균 도구 호출 | 평균 시간 (초) | 최종 정답률 |
 |---|---:|---:|---:|---:|---|
-| coarse | 30/30 | 1 | 1.60 | 9.88 | 검수 대기 |
-| fine | 30/30 | 2 | 1.97 | 10.32 | 검수 대기 |
+| coarse | 30/30 | 1 | 1.60 | 9.88 | 93.3% |
+| fine | 30/30 | 2 | 1.97 | 10.32 | 86.7% |
 
 검수 파일: [coarse](reviews/20261023T073705712Z-eval-coarse-845d6c72/) · [fine](reviews/20261023T073937732Z-eval-fine-23f3d69f/)
 

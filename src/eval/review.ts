@@ -25,9 +25,11 @@ export function validateReview(record: RunRecord, raw: unknown): Review {
     throw new Error('Review must cover every check exactly once');
   }
   if (review.verdict !== 'pending') {
-    if (!review.reviewer?.trim() || !review.reviewedAt || !review.note.trim() || review.checks.some(c => c.verdict === 'pending')) {
-      throw new Error('Completed reviews require a reviewer, timestamp, note, and every check verdict');
+    if (!review.reviewer?.trim() || !review.reviewedAt || review.checks.some(c => c.verdict === 'pending')) {
+      throw new Error('Completed reviews require a reviewer, timestamp, and every check verdict');
     }
+    // Reviewers explain problems; an unremarkable pass may leave the note empty.
+    if (review.verdict === 'fail' && !review.note.trim()) throw new Error('A failed review requires a note');
     if (review.verdict === 'pass' && (record.outcome !== 'completed' || record.privacyViolation || review.checks.some(c => c.verdict === 'fail'))) {
       throw new Error('An incomplete/private/failed record cannot be marked pass');
     }
