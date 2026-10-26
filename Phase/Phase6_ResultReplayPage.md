@@ -1,8 +1,8 @@
-# Phase 6 — Result Replay Page `✅ Built / Pages deployment pending`
+# Phase 6 — Result Replay Page `✅ Complete`
 
 > Build a static page that reads the evaluation records and shows, for each scenario, the question, tool calls, server responses, answer and grading. It can be shared by link and makes no AI calls.
 
-**Status**: ✅ Built and checked locally (2026-10-26). The GitHub Pages workflow is written; the first deployment runs after a push to `main` with Pages set to "GitHub Actions" in the repository settings.
+**Status**: ✅ Complete (2026-10-26). Published at https://soyeonahn3.github.io/shopfloor-mcp/ by the GitHub Actions workflow after each relevant push to `main`.
 **Prerequisites**: Phase 5 complete (run records, human reviews, `eval/summary.json`)
 
 ---
@@ -25,7 +25,7 @@ The page is published on GitHub Pages. It calls no AI, needs no API key, has no 
 |---|---|---|---|
 | 1 | `site/index.html` + `site/src/*.ts` → `site/dist/` (three views + demo placeholder) | ✅ | project-specific |
 | 2 | `scripts/build-site-data.ts` (`npm run site:data`: eval records + reviews → `site/data/*.json`, `--check` drift test) | ✅ | project-specific |
-| 3 | GitHub Pages publishing: `.github/workflows/pages.yml` (GitHub Actions) | ✅ written / first run pending | general |
+| 3 | GitHub Pages publishing: `.github/workflows/pages.yml` (GitHub Actions) | ✅ | general |
 | 4 | `tests/site/` (7 tests: data build, safe text rendering) | ✅ | general |
 
 ---
@@ -93,7 +93,7 @@ npm run site:serve            # http://127.0.0.1:4173/
 - Published pair: `20261023T073705712Z-eval-coarse-845d6c72` / `20261023T073937732Z-eval-fine-23f3d69f`; 28/30 and 26/30, per-type counts identical to Phase 5.
 - All 107 tool calls in the page data carry an evidence ID; no worker-ID pattern in `site/data/`.
 - Headless Chrome: results, scenario, comparison and demo views render from `/` and from a `/shopfloor-mcp/` subpath; an unknown scenario shows a message. At an emulated 390 px phone width no view scrolls horizontally (wide tables scroll inside their container). Light and dark modes checked by screenshot. The two series colors pass the palette validator in both modes.
-- Not yet verified: the first run of the Pages workflow (action versions `checkout@v5`, `setup-node@v5`, `configure-pages@v5`, `upload-pages-artifact@v4`, `deploy-pages@v4`) and the page at its public URL.
+- First Pages deployment (commit `599d1d3`, workflow run 40273972761): every step passed, including `npm ci`, `site:data -- --check` and `tests/site` on Ubuntu. At the public URL the page, CSS, script and all data files return 200, `site/src/` is not published (404), and `data/index.json` is identical to the committed file. Headless Chrome renders the scenario view (1280 px) and the comparison view (390 px, no horizontal scroll) from the public URL.
 
 ---
 
@@ -117,7 +117,7 @@ npm run site:serve            # http://127.0.0.1:4173/
 - **Definition of done:**
   - The page shows all 30 scenarios for both tool sets from committed data. ✅
   - The detail view shows every tool call with its evidence ID. ✅
-  - Opening it from GitHub Pages works without errors. ⏳ after the first deployment
+  - Opening it from GitHub Pages works without errors. ✅
 - **Development data.** Dev-scenario records can be used to build the page before the final eval runs. Do not publish them as results. The builder refuses dev runs.
 - **No worker IDs on the page.** The records contain none (checked in Phase 5). The data build runs `assertPublishable` on every file.
 - **After new reviews or runs**, run `npm run site:data` and commit `site/data/`; otherwise the workflow's `--check` step fails.
@@ -130,15 +130,16 @@ npm run site:serve            # http://127.0.0.1:4173/
 |---|---|
 | 2026-10-21 | Initial creation |
 | 2026-10-26 | Implement the page (three views + demo placeholder, Korean/English), data build with `--check`, local server, Pages workflow and 7 tests; record user decisions (Actions publishing, language toggle, verbatim notes, Markdown subset). `npm run check` passes with 201 tests / 19 files. First Pages deployment pending. |
+| 2026-10-26 | First Pages deployment succeeded (commit `599d1d3`); public page checked. Phase 6 complete. |
 
 ---
 ---
 
-# Phase 6 — 결과 재생 페이지 `✅ 구현 / Pages 배포 대기`
+# Phase 6 — 결과 재생 페이지 `✅ 완료`
 
 > 평가 기록을 읽어 시나리오마다 질문, 도구 호출, 서버 응답, 답변, 채점을 보여주는 정적 페이지를 만든다. 링크로 공유할 수 있고 AI를 호출하지 않는다.
 
-**상태**: ✅ 구현하고 로컬에서 확인했다(2026-10-26). GitHub Pages 워크플로는 작성했고, 저장소 설정에서 Pages 소스를 "GitHub Actions"로 지정한 뒤 `main`에 push하면 첫 배포가 실행된다.
+**상태**: ✅ 완료 (2026-10-26). https://soyeonahn3.github.io/shopfloor-mcp/ 에 게시되어 있고, 관련 파일이 `main`에 push될 때마다 GitHub Actions 워크플로가 다시 배포한다.
 **선행 조건**: Phase 5 완료 (실행 기록, 사람 검수, `eval/summary.json`)
 
 ---
@@ -161,7 +162,7 @@ GitHub Pages에 게시한다. AI 호출, API 키, 백엔드, 로그인이 모두
 |---|---|---|---|
 | 1 | `site/index.html` + `site/src/*.ts` → `site/dist/` (화면 3개 + 데모 자리) | ✅ | 전용 |
 | 2 | `scripts/build-site-data.ts` (`npm run site:data`: 평가 기록 + 검수 → `site/data/*.json`, `--check` 불일치 검사) | ✅ | 전용 |
-| 3 | GitHub Pages 게시: `.github/workflows/pages.yml` (GitHub Actions) | ✅ 작성 / 첫 실행 대기 | 범용 |
+| 3 | GitHub Pages 게시: `.github/workflows/pages.yml` (GitHub Actions) | ✅ | 범용 |
 | 4 | `tests/site/` (테스트 7개: 데이터 생성, 안전한 텍스트 표시) | ✅ | 범용 |
 
 ---
@@ -211,7 +212,7 @@ GitHub Pages에 게시한다. AI 호출, API 키, 백엔드, 로그인이 모두
 - 게시 대상: `20261023T073705712Z-eval-coarse-845d6c72` / `20261023T073937732Z-eval-fine-23f3d69f`. 28/30, 26/30이며 유형별 수가 Phase 5와 같다.
 - 페이지 데이터의 도구 호출 107개 모두 근거 번호가 있고, `site/data/`에 작업자 ID 패턴이 없다.
 - 헤드리스 Chrome: 결과표·상세·비교·데모 화면이 `/`와 `/shopfloor-mcp/` 하위 경로에서 열리고, 없는 시나리오는 안내를 보여준다. 390px 휴대폰 너비 에뮬레이션에서 가로 스크롤이 생기지 않는다(넓은 표는 표 안에서 스크롤). 밝은·어두운 모드를 화면으로 확인했다. 두 계열 색은 두 모드 모두 팔레트 검사를 통과했다.
-- 아직 확인하지 않은 것: Pages 워크플로 첫 실행(액션 버전 `checkout@v5`, `setup-node@v5`, `configure-pages@v5`, `upload-pages-artifact@v4`, `deploy-pages@v4`)과 공개 주소에서의 페이지.
+- Pages 첫 배포(커밋 `599d1d3`, 워크플로 실행 40273972761): Ubuntu에서 `npm ci`, `site:data -- --check`, `tests/site`를 포함한 모든 단계가 통과했다. 공개 주소에서 페이지·CSS·스크립트·데이터 파일이 모두 200으로 열리고, `site/src/`는 게시되지 않으며(404), `data/index.json`은 커밋된 파일과 같다. 헤드리스 Chrome으로 공개 주소의 상세 화면(1280px)과 비교 화면(390px, 가로 스크롤 없음)을 확인했다.
 
 ---
 
@@ -235,7 +236,7 @@ GitHub Pages에 게시한다. AI 호출, API 키, 백엔드, 로그인이 모두
 - **완료 기준:**
   - 커밋된 데이터만으로 두 도구 세트의 30개 시나리오가 보인다. ✅
   - 상세 화면에 모든 도구 호출과 근거 번호가 보인다. ✅
-  - GitHub Pages에서 오류 없이 열린다. ⏳ 첫 배포 후 확인
+  - GitHub Pages에서 오류 없이 열린다. ✅
 - **개발용 데이터.** 최종 평가 전에는 개발용 시나리오 기록으로 페이지를 만들어 볼 수 있다. 다만 그것을 결과로 게시하지 않는다. 생성기는 개발용 실행을 거절한다.
 - **페이지에 작업자 ID는 없다.** 기록에 없고(Phase 5에서 확인), 데이터 생성 시 모든 파일에 `assertPublishable`을 실행한다.
 - **검수나 실행이 새로 생기면** `npm run site:data`를 실행하고 `site/data/`를 커밋한다. 그러지 않으면 워크플로의 `--check` 단계가 실패한다.
@@ -248,3 +249,4 @@ GitHub Pages에 게시한다. AI 호출, API 키, 백엔드, 로그인이 모두
 |---|---|
 | 2026-10-21 | 최초 작성 |
 | 2026-10-26 | 페이지(화면 3개 + 데모 자리, 한·영 전환), `--check`가 있는 데이터 생성, 로컬 서버, Pages 워크플로, 테스트 7개 구현. 사용자 결정(Actions 게시, 문구 전환, 메모 원문, 마크다운 일부) 기록. `npm run check` 통과(테스트 201개 / 파일 19개). Pages 첫 배포 대기. |
+| 2026-10-26 | Pages 첫 배포 성공(커밋 `599d1d3`), 공개 페이지 확인. Phase 6 완료. |

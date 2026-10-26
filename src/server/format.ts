@@ -11,9 +11,11 @@ const statusLabels: Record<string, string> = {
   ok: '정상', missing_data: '미입력 포함', planned_stop: '계획 정지', zero_production: '생산 0',
   out_of_range: '조회 범위 밖', non_working_day: '휴무일', query_failed: '조회 실패',
 };
-function summary(raw: Row): string {
+export const FORM_DRAFT_MESSAGE = '초안 생성됨. 아직 등록되지 않았습니다. 사람이 화면의 폼에서 확인하고 확정해야 등록됩니다.';
+function summary(raw: Row, ui: boolean): string {
   if (raw.ok === false) return String(raw.message ?? '요청을 처리하지 못했습니다.');
-  if (raw.draftId) return '초안 생성됨 (' + raw.draftId + '). 이 환경에서는 확정할 수 없습니다.';
+  if (raw.draftId) return '초안 생성됨 (' + raw.draftId + '). '
+    + (ui ? '사람이 화면의 폼에서 확인하고 확정해야 등록됩니다.' : '이 환경에서는 확정할 수 없습니다.');
   const range = isRow(raw.resolvedRange) ? raw.resolvedRange.from + '~' + raw.resolvedRange.to + ': ' : '';
   const total = isRow(raw.total) ? raw.total : undefined;
   let detail: string;
@@ -35,7 +37,7 @@ function recovery(raw: Row): string | undefined {
   if (raw.reason === 'invalid_input') return '도구 입력 스키마를 확인하세요. 라인은 L1~L6, period는 구조화된 생산일 조건입니다.';
   return '서버와 실행용 DB 상태를 확인한 후 다시 시도하세요. 성공으로 처리하지 마세요.';
 }
-export function formatResult(result: object, context: { tool: string; mode?: string; production?: boolean }): CallToolResult {
+export function formatResult(result: object, context: { tool: string; mode?: string; production?: boolean; ui?: boolean }): CallToolResult {
   // Defense in depth also protects formatter additions. Core already redacts each operation.
   const raw = protectOutput(result) as Row;
   const truncated: { path: string; total: number; returned: number }[] = [];
@@ -47,8 +49,11 @@ export function formatResult(result: object, context: { tool: string; mode?: str
     if (isRow(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cap(v, path ? path + '.' + k : k)]));
     return value;
   };
+  const ui = context.ui === true;
   const body = {
-    summary: summary(raw), ...cap(raw) as Row,
+    summary: summary(raw, ui), ...cap(raw) as Row,
+    // Core's draft message describes the text-only surface; a form client must not be told it cannot confirm.
+    ...(ui && raw.draftId ? { message: FORM_DRAFT_MESSAGE } : {}),
     ...(context.production ? { note: LINE_COMPARISON_NOTE } : {}),
     request: { tool: context.tool, ...(context.mode ? { mode: context.mode } : {}) },
     units: { achievement: 'ratio', defectRate: 'ratio', producedChangePct: 'percent', changePercentagePoints: 'percentage_points', loss60: 'quantity × 60' },

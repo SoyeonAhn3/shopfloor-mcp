@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/server';
+import type { McpServer, RegisteredTool } from '@modelcontextprotocol/server';
 import { draftSchema } from '../../core/issues.js';
 import { groupedQuerySchema, groupedAnalysisSchema } from '../schemas.js';
-import { register, type Core } from '../tools/register.js';
+import { register, type Core, type UiState } from '../tools/register.js';
 
-export function registerCoarse(server: McpServer, core: Core): void {
+export function registerCoarse(server: McpServer, core: Core, ui: UiState): RegisteredTool {
   const t = core.tools;
   register(server, 'get_line_info', z.strictObject({}), input => t.getLineInfo(input));
   register(server, 'query_production', groupedQuerySchema, ({ mode, ...args }) => {
@@ -21,5 +21,5 @@ export function registerCoarse(server: McpServer, core: Core): void {
       case 'anomalies': return t.detectAnomalies(args);
     }
   }, { grouped: true });
-  register(server, 'preview_issue', draftSchema, input => t.createDraft(input));
+  return register(server, 'preview_issue', draftSchema, input => t.createDraft(input), { ui });
 }

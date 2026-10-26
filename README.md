@@ -4,7 +4,7 @@
 
 > MCP server that lets Claude answer shop-floor production questions with server-computed numbers and traceable evidence — and register issues only after a human confirms.
 
-**Status: Phases 1–4 implemented; Phase 5 Sonnet evaluation human-reviewed (final accuracy: 4 tools 93.3%, 10 tools 86.7%, N=1); Phase 6 replay page built (first GitHub Pages deployment pending).** The local MCP server provides **4 grouped tools by default**, 4 resources and 2 prompts, with a 10-tool comparison option. It reuses validated calculations, general periods, auditing and guarded drafts on a runtime SQLite copy. The default dataset has 69,835 rows in 11 tables. Live Claude evaluation records and readable reports are available under `eval/`. Desktop UI acceptance remains a separate manual check.
+**Status: Phases 1–4 implemented; Phase 5 Sonnet evaluation human-reviewed (final accuracy: 4 tools 93.3%, 10 tools 86.7%, N=1); Phase 6 replay page published at [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/); Phase 7 in progress (issue confirmation form renders in MCP Inspector; the human-only confirm tool is next).** The local MCP server provides **4 grouped tools by default**, 4 resources and 2 prompts, with a 10-tool comparison option. Clients that declare MCP Apps also get the confirmation form resource. It reuses validated calculations, general periods, auditing and guarded drafts on a runtime SQLite copy. The default dataset has 69,835 rows in 11 tables. Live Claude evaluation records and readable reports are available under `eval/`. Desktop UI acceptance remains a separate manual check.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Built as a portfolio project. Earlier projects embedded AI inside an app; this o
 
 ## Operation Flow
 
-Implemented text flow (the human confirmation UI is planned for Phase 7):
+Implemented flow. MCP Apps clients show the draft in a confirmation form; the confirm tool behind its button is the next Phase 7 step:
 
 ```
 User asks in Claude Desktop ("Why is Line 4 below target?")
@@ -37,20 +37,20 @@ User asks in Claude Desktop ("Why is Line 4 below target?")
       → Server computes from SQLite (read-only): achievement, loss breakdown, hourly patterns
         → Response: summary + evidence ID + data-as-of time
           → Claude interprets and answers, citing evidence IDs
-            → Issue request: Claude creates a draft only → a human confirms with a button → audit log
+            → Issue request: Claude creates a draft only → form shows the draft → a human confirms with a button → audit log
 ```
 
 ## Technology Stack
 
-The server uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest, and the pinned MCP TypeScript SDK v2. Client setup instructions and the static replay page (`site/`, plain TypeScript without a framework) are available; the confirmation UI is planned for Phase 7.
+The server uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest, and the pinned MCP TypeScript SDK v2. Client setup instructions and the static replay page (`site/`, plain TypeScript without a framework) are available. The Phase 7 confirmation form (`src/server/ui/`, self-contained HTML) uses the pinned MCP Apps extension `@modelcontextprotocol/ext-apps`; its confirm tool is in progress.
 
 | Technology | Role | Why |
 |---|---|---|
-| TypeScript | Data generator, validator, core and MCP server | One language for the dataset tools, server, and future HTML/JS confirmation form |
+| TypeScript | Data generator, validator, core and MCP server | One language for the dataset tools, server, and the HTML/JS confirmation form |
 | SQLite | Production data, issues, audit log | Single file with no DB server; a fixed seed reproduces production values, while each generation is identified separately |
 | MCP (Model Context Protocol) | Connection between Claude and the server | Claude Desktop handles the chat and tool-call loop; the same server can be reused by other MCP clients |
 | Claude Desktop | Client (chat, tool selection, answers) | No custom chat frontend to build or pay API costs for |
-| MCP Apps (Phase 7, under review) | Issue confirmation form inside the conversation | The server provides the screen, so no separate frontend is needed |
+| MCP Apps (Phase 7, adopted conditionally) | Issue confirmation form inside the conversation | The server provides the screen, so no separate frontend is needed |
 | Static page (GitHub Pages) | Evaluation replay page | No AI calls, so it costs nothing and can be shared by link without login |
 
 ## AI Components
@@ -73,7 +73,7 @@ Claude interprets; it does not calculate. Every number in an answer comes from a
 
 ### Safety by structure, not by prompt
 
-- **Issue registration:** Claude can only create a draft. The confirm tool is not in Claude's tool list. A human confirms with a button, and the server accepts it only with a one-time draft ID (10-minute expiry, single use).
+- **Issue registration:** Claude can only create a draft. The confirm tool is not in Claude's tool list. A human confirms with a button, and the server accepts it only with a one-time draft ID (10-minute expiry, single use). The form is registered only for clients that declare MCP Apps; other clients, including the eval runner, keep the text-only tools.
 - **Free-text memos:** memo fields are passed as reference data so that instructions hidden in them are not followed. Even if Claude is fooled, the result stops at a draft.
 - **Worker data:** worker IDs are never returned by any tool, so per-worker rankings cannot be produced. Aggregation stops at line and shift crew.
 
@@ -113,7 +113,7 @@ Each generation receives a new `dataset_version` and actual creation time. A DB 
 
 Edit [config/generator.config.json](config/generator.config.json) to change generation settings, or pass `--config path` to `generate`. Validation defaults to the snapshot beside the DB, so source-config changes do not change how an older generation is validated. Generated bundles are git-ignored and should be regenerated together.
 
-`npm run check` runs type checking (server and replay page), **201 tests in 19 files**, and the build. The 37 Phase 5 tests cover the model/tool loop, limits, grading units and checkpoints, immutable-source stdio runs, DB changes, exact-record human reviews and the review sheet's decision import. The 7 Phase 6 tests cover the page data build (reviewed pairs only, evidence IDs, trimming, drift detection) and text-only rendering. MCP tests cover discovery, grouped/fine parity, periods, permissions/privacy and runtime-copy protection. Tests never load `.env` or make paid API calls. They copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
+`npm run check` runs type checking (server and replay page), **206 tests in 20 files**, and the build. The 37 Phase 5 tests cover the model/tool loop, limits, grading units and checkpoints, immutable-source stdio runs, DB changes, exact-record human reviews and the review sheet's decision import. The 7 Phase 6 tests cover the page data build (reviewed pairs only, evidence IDs, trimming, drift detection) and text-only rendering. The 5 Phase 7 tests cover MCP Apps detection, the unchanged text-only surface, form linkage in both tool sets, the self-contained form and the form-client draft message. MCP tests cover discovery, grouped/fine parity, periods, permissions/privacy and runtime-copy protection. Tests never load `.env` or make paid API calls. They copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
@@ -174,7 +174,19 @@ npm run site:build    # site/src → site/dist/
 npm run site:serve    # http://127.0.0.1:4173/
 ```
 
-The static page shows the 30 eval scenarios for both tool sets: a results table, a step-by-step view per scenario (question → tool calls with evidence IDs → server responses → final answer → answer-key values → verbatim reviewer note) and the tool-set comparison. Interface text switches between Korean and English; records stay as recorded. It reads committed JSON, calls no AI and renders every record string as text. `site:data` publishes only a human-reviewed pair of full eval runs under matching conditions; `npm run site:data -- --check` fails when `site/data/` no longer matches the records. `.github/workflows/pages.yml` runs that check and deploys to GitHub Pages after a push to `main`; the first deployment needs Pages set to "GitHub Actions" in the repository settings. See [Phase 6](Phase/Phase6_ResultReplayPage.md).
+The static page shows the 30 eval scenarios for both tool sets: a results table, a step-by-step view per scenario (question → tool calls with evidence IDs → server responses → final answer → answer-key values → verbatim reviewer note) and the tool-set comparison. Interface text switches between Korean and English; records stay as recorded. It reads committed JSON, calls no AI and renders every record string as text. `site:data` publishes only a human-reviewed pair of full eval runs under matching conditions; `npm run site:data -- --check` fails when `site/data/` no longer matches the records. `.github/workflows/pages.yml` runs that check and deploys to GitHub Pages (source: "GitHub Actions") after a push to `main`. Public page: https://soyeonahn3.github.io/shopfloor-mcp/. See [Phase 6](Phase/Phase6_ResultReplayPage.md).
+
+### Issue confirmation form (Phase 7, in progress)
+
+The form appears only in clients that declare MCP Apps. Without Claude Desktop, check it in the MCP Inspector web UI (run with `npx`, not a project dependency; Node ≥ 22.19):
+
+```powershell
+npm run build
+npm run db:copy -- --from data/production.db --to data/run/phase7-inspector.db
+npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db data/run/phase7-inspector.db --role operator --user demo
+```
+
+In the browser page the command opens, connect, run `query_production` in the Tools tab to get an evidence ID (`Q-…`), then call `preview_issue` with that ID in the Apps tab and open the app. The form shows the line, production day, evidence and expiry, and lets a person edit the title, severity and description. The 확정 button already sends `confirm_issue` through the host, but the tool is not registered yet, so no issue is created. The Inspector CLI, Claude Code and the eval runner declare no MCP Apps and see no form. See [Phase 7](Phase/Phase7_ConfirmationAndDemo.md).
 
 ### Planned model comparison
 
@@ -195,8 +207,8 @@ shopfloor-mcp/
 │   ├── Phase3_CoreLogic.md            # ✅ Completed
 │   ├── Phase4_McpServer.md            # ✅ Implemented; manual client check pending
 │   ├── Phase5_Evaluation.md           # ✅ Sonnet eval human-reviewed
-│   ├── Phase6_ResultReplayPage.md     # ✅ Built; Pages deployment pending
-│   └── Phase7_ConfirmationAndDemo.md  # 🔲 Not started
+│   ├── Phase6_ResultReplayPage.md     # ✅ Complete; published on GitHub Pages
+│   └── Phase7_ConfirmationAndDemo.md  # 🚧 In progress
 ├── config/generator.config.json      # Seed, normal ranges, E1–E9, seed issues
 ├── src/
 │   ├── shared/                       # Row types, time helpers, code labels
@@ -204,11 +216,11 @@ shopfloor-mcp/
 │   ├── answer-key/                   # Independent event and weekly aggregates
 │   ├── eval/                         # Scenario schema, loading and freeze checks
 │   ├── core/                         # Validated queries, metrics, analysis, audit and issues
-│   ├── server/                       # Grouped/fine MCP tools, resources, prompts and stdio
+│   ├── server/                       # Grouped/fine MCP tools, resources, prompts, stdio and MCP Apps form (ui/)
 │   └── validator/                    # V01–V17 and CLI
 ├── eval/scenarios/                   # 30 eval + 10 dev JSON files, lock, question catalogue
 ├── site/                             # Replay page: index.html, style.css, src/*.ts, data/ (committed JSON)
-├── tests/                            # 201 tests across 19 files
+├── tests/                            # 206 tests across 20 files
 ├── scripts/                          # Assets, freeze, runtime copy, client config, demos, page data and local server
 ├── .github/workflows/pages.yml       # Replay page check and GitHub Pages deployment
 ├── resources/                        # Glossary, data guide and tested anomaly criteria
@@ -237,8 +249,8 @@ shopfloor-mcp/
 | Phase 3 — Core server logic | ✅ Done | General periods, six states, metrics/comparison, analysis, audited public API, guarded draft/confirm, 63 new tests and CLI demo |
 | Phase 4 — MCP server | ✅ Implemented; manual client check pending | Default 4 tools / optional fine 10, 4 resources / 2 prompts, 43 new tests and stdio demo |
 | Phase 5 — Evaluation | ✅ Sonnet eval human-reviewed (93.3% / 86.7%) | Live Claude/MCP runner, dev tuning, answer/action checks, JSON/Markdown records, 4/10-tool comparison |
-| Phase 6 — Result replay page | ✅ Built; first Pages deployment pending | Static page (results, scenario steps, tool-set comparison; Korean/English), data build with drift check, Pages workflow, 7 new tests |
-| Phase 7 — Confirmation screen & demo | 📋 Planned | In-conversation issue confirmation form (MCP Apps under review; the 11th tool, human button only), demo video, documentation |
+| Phase 6 — Result replay page | ✅ Complete; published on GitHub Pages | Static page (results, scenario steps, tool-set comparison; Korean/English), data build with drift check, Pages workflow, 7 new tests |
+| Phase 7 — Confirmation screen & demo | 🚧 In progress | Items 1–4 first: MCP Apps adopted conditionally (Claude Desktop check pending); issue confirmation form done and rendered in MCP Inspector, 5 new tests; human-only `confirm_issue` and its tests next. Demo video and documentation later |
 
 Phases 1–6 are development stage 1 (text-only); Phase 7 is development stage 2. Details are in [Phase/](Phase/).
 
@@ -254,7 +266,7 @@ The plan documents are written in Korean; the Phase documents are in English and
 
 ## Limitations
 
-- Phases 1–5 provide data, frozen questions, tested core/MCP server and live model evaluation tooling. Automatic checks are provisional, and initial N=1 runs do not measure variability. All 60 Sonnet eval records are human-reviewed; eight improvement candidates are recorded in Phase 5 but not applied. The replay page is built and checked locally, but its first GitHub Pages deployment has not run. Desktop UI acceptance and the confirmation UI remain pending.
+- Phases 1–5 provide data, frozen questions, tested core/MCP server and live model evaluation tooling. Automatic checks are provisional, and initial N=1 runs do not measure variability. All 60 Sonnet eval records are human-reviewed; eight improvement candidates are recorded in Phase 5 but not applied. The replay page is published on GitHub Pages. The confirmation form renders in MCP Inspector, but its confirm tool is not registered yet, and Claude Desktop acceptance is pending.
 - Production quantities are hourly totals. The validator checks capacity after shift changes; it cannot prove the exact minute each good unit was produced.
 - Synthetic data only; no connection to real plant systems.
 - Local only: the server runs on the user's PC through Claude Desktop. No remote deployment or login.
