@@ -110,6 +110,7 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 - **The server cannot see who pressed the button.** The guarantee comes from three things together: host-side app-only visibility, not registering the tool for clients without UI, and one-time draft IDs. Write this down honestly in the docs.
 - **The Phase 5 runner has no UI,** so the confirm path is covered by unit tests and the manual demo, not by the eval runs.
 - **The paste-in comparison** (plan §3-5) runs after development as a separate test. It is not part of this phase.
+- **Replay page video slot.** Phase 6 left a placeholder at `#/demo`. The page's CSP allows only same-origin content, so an embedded hosted video (for example YouTube) needs a `frame-src` entry; a video file under `site/` needs no change.
 
 ---
 
@@ -215,6 +216,7 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 - **서버는 누가 버튼을 눌렀는지 직접 볼 수 없다.** 보장은 세 가지가 함께 만든다: 호스트의 화면 전용 공개 범위, 화면 미지원 클라이언트에 등록하지 않기, 일회용 초안 번호. 이 점을 문서에 솔직하게 적는다.
 - **Phase 5 실행기는 화면이 없다.** 그래서 확정 경로는 평가 실행이 아니라 단위 테스트와 수동 데모로 확인한다.
 - **붙여넣기 방식 비교**(기획서 3-5)는 개발 완료 후 별도 테스트로 진행하며, 이 Phase에 포함하지 않는다.
+- **결과 재생 페이지의 영상 칸.** Phase 6에서 `#/demo`에 자리만 두었다. 페이지 CSP는 같은 출처만 허용하므로, 외부 영상(예: YouTube)을 넣으려면 `frame-src`를 추가해야 한다. `site/` 안의 영상 파일은 바꿀 것이 없다.
 
 ---
 

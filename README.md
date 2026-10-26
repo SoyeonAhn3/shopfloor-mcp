@@ -4,7 +4,7 @@
 
 > MCP server that lets Claude answer shop-floor production questions with server-computed numbers and traceable evidence — and register issues only after a human confirms.
 
-**Status: Phases 1–4 implemented; Phase 5 Sonnet evaluation human-reviewed (final accuracy: 4 tools 93.3%, 10 tools 86.7%, N=1).** The local MCP server provides **4 grouped tools by default**, 4 resources and 2 prompts, with a 10-tool comparison option. It reuses validated calculations, general periods, auditing and guarded drafts on a runtime SQLite copy. The default dataset has 69,835 rows in 11 tables. Live Claude evaluation records and readable reports are available under `eval/`. Desktop UI acceptance remains a separate manual check.
+**Status: Phases 1–4 implemented; Phase 5 Sonnet evaluation human-reviewed (final accuracy: 4 tools 93.3%, 10 tools 86.7%, N=1); Phase 6 replay page built (first GitHub Pages deployment pending).** The local MCP server provides **4 grouped tools by default**, 4 resources and 2 prompts, with a 10-tool comparison option. It reuses validated calculations, general periods, auditing and guarded drafts on a runtime SQLite copy. The default dataset has 69,835 rows in 11 tables. Live Claude evaluation records and readable reports are available under `eval/`. Desktop UI acceptance remains a separate manual check.
 
 ## Overview
 
@@ -42,7 +42,7 @@ User asks in Claude Desktop ("Why is Line 4 below target?")
 
 ## Technology Stack
 
-The server uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest, and the pinned MCP TypeScript SDK v2. Client setup instructions are available; the replay page and confirmation UI are planned for later phases.
+The server uses Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest, and the pinned MCP TypeScript SDK v2. Client setup instructions and the static replay page (`site/`, plain TypeScript without a framework) are available; the confirmation UI is planned for Phase 7.
 
 | Technology | Role | Why |
 |---|---|---|
@@ -113,7 +113,7 @@ Each generation receives a new `dataset_version` and actual creation time. A DB 
 
 Edit [config/generator.config.json](config/generator.config.json) to change generation settings, or pass `--config path` to `generate`. Validation defaults to the snapshot beside the DB, so source-config changes do not change how an older generation is validated. Generated bundles are git-ignored and should be regenerated together.
 
-`npm run check` runs type checking, **194 tests in 17 files**, and the build. The 37 Phase 5 tests cover the model/tool loop, limits, grading units and checkpoints, immutable-source stdio runs, DB changes, exact-record human reviews and the review sheet's decision import. MCP tests cover discovery, grouped/fine parity, periods, permissions/privacy and runtime-copy protection. Tests never load `.env` or make paid API calls. They copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
+`npm run check` runs type checking (server and replay page), **201 tests in 19 files**, and the build. The 37 Phase 5 tests cover the model/tool loop, limits, grading units and checkpoints, immutable-source stdio runs, DB changes, exact-record human reviews and the review sheet's decision import. The 7 Phase 6 tests cover the page data build (reviewed pairs only, evidence IDs, trimming, drift detection) and text-only rendering. MCP tests cover discovery, grouped/fine parity, periods, permissions/privacy and runtime-copy protection. Tests never load `.env` or make paid API calls. They copy the matching frozen bundle when available; a fresh checkout generates separate fixtures. For individual checks use `npm test`, `npm run typecheck`, or `npm run build`. After building, the generator/validator CLIs also run with plain Node.js:
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
@@ -166,6 +166,16 @@ npm run eval:summary
 
 Read [eval/summary.md](eval/summary.md) for the overview. Review Markdown files show the question, actual tool arguments, server results, final answer, independent expected values and automated checks. Adjacent JSON checklists start pending; final accuracy is not published until human review is complete. `eval:sheet` writes a local review page (`eval/reviews/review-sheet.html`) that shows coarse and fine answers side by side with expected values and highlighted matches; its saved decisions file is validated and applied with `eval:review -- --apply`. [Phase 5](Phase/Phase5_Evaluation.md) documents full dev runs, description freezing, the 30-question comparison, costs and current results. Only questions and public MCP context are sent to Claude; the answer key stays in the grader.
 
+### Replay page (Phase 6)
+
+```bash
+npm run site:data     # eval/runs + eval/reviews → site/data/ (committed)
+npm run site:build    # site/src → site/dist/
+npm run site:serve    # http://127.0.0.1:4173/
+```
+
+The static page shows the 30 eval scenarios for both tool sets: a results table, a step-by-step view per scenario (question → tool calls with evidence IDs → server responses → final answer → answer-key values → verbatim reviewer note) and the tool-set comparison. Interface text switches between Korean and English; records stay as recorded. It reads committed JSON, calls no AI and renders every record string as text. `site:data` publishes only a human-reviewed pair of full eval runs under matching conditions; `npm run site:data -- --check` fails when `site/data/` no longer matches the records. `.github/workflows/pages.yml` runs that check and deploys to GitHub Pages after a push to `main`; the first deployment needs Pages set to "GitHub Actions" in the repository settings. See [Phase 6](Phase/Phase6_ResultReplayPage.md).
+
 ### Planned model comparison
 
 **Separate post-development test (moved from Phase 5, deferred 2026-10-26):** compare `claude-opus-5-5` with the existing `claude-sonnet-5-5` baseline using the same four coarse tools, frozen questions and dataset. Evaluate human-reviewed quality, calls, latency, tokens and cost. Opus has not been run. It is deferred until the improvement candidates are applied and re-evaluated on Sonnet, and will run on the four coarse tools only if failures that look like model judgement remain. Model-specific dev validation/freezing, verified prices and a cross-model report are still needed before it runs. The current summary compares tool sets within the same model. See [Phase 5](Phase/Phase5_Evaluation.md) for the experiment and model-retirement migration plan. Retirement monitoring and automatic fallback are not implemented.
@@ -185,7 +195,7 @@ shopfloor-mcp/
 │   ├── Phase3_CoreLogic.md            # ✅ Completed
 │   ├── Phase4_McpServer.md            # ✅ Implemented; manual client check pending
 │   ├── Phase5_Evaluation.md           # ✅ Sonnet eval human-reviewed
-│   ├── Phase6_ResultReplayPage.md     # 🔲 Not started
+│   ├── Phase6_ResultReplayPage.md     # ✅ Built; Pages deployment pending
 │   └── Phase7_ConfirmationAndDemo.md  # 🔲 Not started
 ├── config/generator.config.json      # Seed, normal ranges, E1–E9, seed issues
 ├── src/
@@ -197,8 +207,10 @@ shopfloor-mcp/
 │   ├── server/                       # Grouped/fine MCP tools, resources, prompts and stdio
 │   └── validator/                    # V01–V17 and CLI
 ├── eval/scenarios/                   # 30 eval + 10 dev JSON files, lock, question catalogue
-├── tests/                            # 194 tests across 17 files
-├── scripts/                          # Assets, freeze, runtime copy, client config and demos
+├── site/                             # Replay page: index.html, style.css, src/*.ts, data/ (committed JSON)
+├── tests/                            # 201 tests across 19 files
+├── scripts/                          # Assets, freeze, runtime copy, client config, demos, page data and local server
+├── .github/workflows/pages.yml       # Replay page check and GitHub Pages deployment
 ├── resources/                        # Glossary, data guide and tested anomaly criteria
 ├── docs/MCP_SETUP.md                 # Build, runtime DB, client setup and protocol demo
 ├── data/                             # Generated bundle, git-ignored
@@ -206,6 +218,7 @@ shopfloor-mcp/
 ├── package-lock.json
 ├── tsconfig.json
 ├── tsconfig.build.json
+├── tsconfig.site.json
 ├── vitest.config.ts
 ├── .node-version
 ├── .claude/skills/                    # Claude Code skills used during development
@@ -224,7 +237,7 @@ shopfloor-mcp/
 | Phase 3 — Core server logic | ✅ Done | General periods, six states, metrics/comparison, analysis, audited public API, guarded draft/confirm, 63 new tests and CLI demo |
 | Phase 4 — MCP server | ✅ Implemented; manual client check pending | Default 4 tools / optional fine 10, 4 resources / 2 prompts, 43 new tests and stdio demo |
 | Phase 5 — Evaluation | ✅ Sonnet eval human-reviewed (93.3% / 86.7%) | Live Claude/MCP runner, dev tuning, answer/action checks, JSON/Markdown records, 4/10-tool comparison |
-| Phase 6 — Result replay page | 📋 Planned | Static page on GitHub Pages |
+| Phase 6 — Result replay page | ✅ Built; first Pages deployment pending | Static page (results, scenario steps, tool-set comparison; Korean/English), data build with drift check, Pages workflow, 7 new tests |
 | Phase 7 — Confirmation screen & demo | 📋 Planned | In-conversation issue confirmation form (MCP Apps under review; the 11th tool, human button only), demo video, documentation |
 
 Phases 1–6 are development stage 1 (text-only); Phase 7 is development stage 2. Details are in [Phase/](Phase/).
@@ -241,7 +254,7 @@ The plan documents are written in Korean; the Phase documents are in English and
 
 ## Limitations
 
-- Phases 1–5 provide data, frozen questions, tested core/MCP server and live model evaluation tooling. Automatic checks are provisional, and initial N=1 runs do not measure variability. All 60 Sonnet eval records are human-reviewed; eight improvement candidates are recorded in Phase 5 but not applied. Desktop UI acceptance, replay page and confirmation UI remain pending.
+- Phases 1–5 provide data, frozen questions, tested core/MCP server and live model evaluation tooling. Automatic checks are provisional, and initial N=1 runs do not measure variability. All 60 Sonnet eval records are human-reviewed; eight improvement candidates are recorded in Phase 5 but not applied. The replay page is built and checked locally, but its first GitHub Pages deployment has not run. Desktop UI acceptance and the confirmation UI remain pending.
 - Production quantities are hourly totals. The validator checks capacity after shift changes; it cannot prove the exact minute each good unit was produced.
 - Synthetic data only; no connection to real plant systems.
 - Local only: the server runs on the user's PC through Claude Desktop. No remote deployment or login.

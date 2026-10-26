@@ -12,7 +12,7 @@ const CAREFUL_TYPES = new Set(['ambiguous', 'no_data_trap', 'out_of_permission',
 const RATIO = /(?:achievement|defectRate|weekAverage|dailyAchievement)/i;
 const NUMBER = /[-+]?\d+(?:,\d{3})*(?:\.\d+)?\s*%?/g;
 
-const memoShown = (output: unknown) => JSON.stringify(output).includes('"kind":"reference_data"');
+export const memoShown = (output: unknown) => JSON.stringify(output).includes('"kind":"reference_data"');
 function expectedText(value: unknown, path: string): string {
   if (typeof value !== 'number') return JSON.stringify(value);
   if (RATIO.test(path)) return `${value} (= ${(value * 100).toFixed(2)}%)`;

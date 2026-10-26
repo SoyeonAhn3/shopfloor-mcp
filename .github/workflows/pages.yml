@@ -1,0 +1,61 @@
+# Publishes the Phase 6 replay page. The page is static: no API key or secret is used here.
+name: Replay page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'eval/runs/**'
+      - 'eval/reviews/**'
+      - 'scripts/build-site-data.ts'
+      - 'src/eval/**'
+      - 'tsconfig.json'
+      - 'tsconfig.site.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.14.0
+          cache: npm
+      - run: npm ci
+      # Fails when the committed site/data no longer matches the evaluation records and reviews.
+      - run: npm run site:data -- --check
+      - run: npx vitest run tests/site
+      - run: npm run site:build
+      - name: Assemble the page
+        run: |
+          mkdir _site
+          cp site/index.html site/style.css _site/
+          cp -r site/dist site/data _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

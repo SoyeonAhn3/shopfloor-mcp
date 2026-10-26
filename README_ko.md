@@ -4,7 +4,7 @@
 
 > Claude가 생산 현황 질문에 서버가 계산한 수치와 추적 가능한 근거로 답하고, 사람이 확인한 뒤에만 이슈를 등록하는 MCP 서버
 
-**현재 상태: Phase 1~4 구현, Phase 5 Sonnet 평가 사람 검수 완료(최종 정답률: 도구 4개 93.3%, 도구 10개 86.7%, N=1).** 로컬 MCP 서버는 **공통 기능을 묶은 도구 4개**를 기본으로 제공하며 참고자료 4개·질문 템플릿 2개와 비교용 도구 10개를 지원합니다. 검증된 기간 해석·계산·감사 기록·초안을 실행용 SQLite 복사본에서 처리합니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. 실제 Claude 평가 기록과 읽기 쉬운 보고서는 `eval/`에 저장하며, Desktop 화면 확인은 별도 수동 검증으로 남아 있습니다.
+**현재 상태: Phase 1~4 구현, Phase 5 Sonnet 평가 사람 검수 완료(최종 정답률: 도구 4개 93.3%, 도구 10개 86.7%, N=1), Phase 6 결과 재생 페이지 구현(GitHub Pages 첫 배포 대기).** 로컬 MCP 서버는 **공통 기능을 묶은 도구 4개**를 기본으로 제공하며 참고자료 4개·질문 템플릿 2개와 비교용 도구 10개를 지원합니다. 검증된 기간 해석·계산·감사 기록·초안을 실행용 SQLite 복사본에서 처리합니다. 기본 데이터는 테이블 11개, 총 69,835행입니다. 실제 Claude 평가 기록과 읽기 쉬운 보고서는 `eval/`에 저장하며, Desktop 화면 확인은 별도 수동 검증으로 남아 있습니다.
 
 ## 개요
 
@@ -42,7 +42,7 @@
 
 ## 기술 스택
 
-서버는 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest와 버전을 고정한 MCP TypeScript SDK v2를 사용합니다. 클라이언트 연결 안내를 제공하며 결과 재생 페이지와 확정 화면은 이후 Phase 계획입니다.
+서버는 Node.js 24.14.0, TypeScript, SQLite (`better-sqlite3`), zod, Vitest와 버전을 고정한 MCP TypeScript SDK v2를 사용합니다. 클라이언트 연결 안내와 정적 결과 재생 페이지(`site/`, 프레임워크 없는 TypeScript)를 제공하며 확정 화면은 Phase 7 계획입니다.
 
 | Technology | Role | Why |
 |---|---|---|
@@ -113,7 +113,7 @@ npm run validate -- --db data/run-02/production.db --json
 
 설정은 [config/generator.config.json](config/generator.config.json)에서 수정하거나 `generate`에 `--config 경로`로 전달합니다. 검증은 기본적으로 DB 옆의 설정 스냅샷을 사용하므로 원본 설정을 수정해도 예전 생성본의 검증 기준이 바뀌지 않습니다. 생성 파일 묶음은 Git에서 제외하며, DB와 정답표를 함께 다시 만듭니다.
 
-`npm run check`는 타입 검사, **파일 17개의 테스트 194개**, 빌드를 실행합니다. Phase 5 테스트 37개는 모델·도구 호출 반복, 한도, 채점 단위·중간 턴, 원본을 보존하는 실제 stdio 실행, DB 변경, 기록 해시 기반 사람 검수와 검수 화면 판정 반영을 확인합니다. MCP 테스트는 도구 목록, 묶음·세부 버전 동일 결과, 기간, 권한·정보 보호와 복사본 보호를 검증합니다. 테스트는 `.env`를 읽거나 유료 API를 호출하지 않습니다. 일치하는 동결 생성본이 있으면 복사하고 새 체크아웃에는 별도 테스트 데이터를 만듭니다. 개별 실행은 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드된 생성기·검증기는 Node.js로도 실행할 수 있습니다.
+`npm run check`는 타입 검사(서버와 결과 재생 페이지), **파일 19개의 테스트 201개**, 빌드를 실행합니다. Phase 5 테스트 37개는 모델·도구 호출 반복, 한도, 채점 단위·중간 턴, 원본을 보존하는 실제 stdio 실행, DB 변경, 기록 해시 기반 사람 검수와 검수 화면 판정 반영을 확인합니다. Phase 6 테스트 7개는 페이지 데이터 생성(검수 완료 쌍만, 근거 번호, 줄이기, 불일치 감지)과 텍스트로만 표시하는 렌더링을 확인합니다. MCP 테스트는 도구 목록, 묶음·세부 버전 동일 결과, 기간, 권한·정보 보호와 복사본 보호를 검증합니다. 테스트는 `.env`를 읽거나 유료 API를 호출하지 않습니다. 일치하는 동결 생성본이 있으면 복사하고 새 체크아웃에는 별도 테스트 데이터를 만듭니다. 개별 실행은 `npm test`, `npm run typecheck`, `npm run build`를 사용합니다. 빌드된 생성기·검증기는 Node.js로도 실행할 수 있습니다.
 
 ```sh
 node dist/generator/index.js --out-dir data/run-03
@@ -166,6 +166,16 @@ npm run eval:summary
 
 [eval/summary.md](eval/summary.md)에서 전체 결과를 확인합니다. 검수용 Markdown에는 질문, 실제 도구 입력, 서버 결과, 최종 답변, 독립 정답과 자동 검사가 들어 있습니다. 옆 JSON 체크리스트는 검수 대기로 시작하며 사람이 검수를 마치기 전에는 최종 정답률을 표시하지 않습니다. `eval:sheet`는 coarse와 fine 답변을 정답·일치 위치 표시와 함께 나란히 보여주는 로컬 검수 화면(`eval/reviews/review-sheet.html`)을 만듭니다. 화면에서 저장한 결정 파일은 `eval:review -- --apply`가 검증한 뒤 반영합니다. 전체 개발용 실행, 도구 설명 동결, 30개 질문 비교, 비용·실행 결과는 [Phase 5](Phase/Phase5_Evaluation.md)에 기록합니다. Claude에는 질문과 공개 MCP 문맥만 전달하며 정답표는 채점기에서만 사용합니다.
 
+### 결과 재생 페이지 (Phase 6)
+
+```bash
+npm run site:data     # eval/runs + eval/reviews → site/data/ (커밋 대상)
+npm run site:build    # site/src → site/dist/
+npm run site:serve    # http://127.0.0.1:4173/
+```
+
+정적 페이지는 두 도구 세트의 평가 시나리오 30개를 결과표, 시나리오별 단계(질문 → 근거 번호가 붙은 도구 호출 → 서버 응답 → 최종 답변 → 정답값 → 검수 메모 원문), 도구 세트 비교로 보여줍니다. 화면 문구는 한국어·영어로 전환하며 기록 본문은 원래대로 표시합니다. 커밋된 JSON만 읽고 AI를 호출하지 않으며 기록의 모든 문자열을 텍스트로만 표시합니다. `site:data`는 같은 조건에서 사람 검수를 마친 전체 평가 실행 쌍만 게시하며, `npm run site:data -- --check`는 `site/data/`가 기록과 달라지면 실패합니다. `.github/workflows/pages.yml`은 `main`에 push되면 이 검사를 거쳐 GitHub Pages에 배포합니다. 첫 배포 전에 저장소 설정에서 Pages 소스를 "GitHub Actions"로 지정해야 합니다. 자세한 내용은 [Phase 6](Phase/Phase6_ResultReplayPage.md)에 있습니다.
+
 ### 모델 비교 계획
 
 **개발 완료 후 별도 테스트 (Phase 5에서 이동, 2026-10-26 연기):** 같은 coarse 도구 4개·동결 질문·DB로 `claude-opus-5-5`와 기존 `claude-sonnet-5-5`를 비교합니다. 사람 검수를 거친 품질, 호출 횟수, 시간, 토큰과 비용을 평가합니다. Opus는 아직 실행하지 않았습니다. 개선 후보를 반영하고 Sonnet으로 다시 평가한 뒤로 연기했으며, 모델 판단력 문제로 보이는 실패가 남을 때만 coarse 도구 4개로 실행합니다. 실행 전에는 모델별 개발용 검증·동결, 단가 확인과 모델 간 비교 보고서가 필요합니다. 현재 요약기는 같은 모델의 도구 구성을 비교합니다. 실험과 모델 지원 종료 시 전환 계획은 [Phase 5](Phase/Phase5_Evaluation.md)에 기록했습니다. 종료 자동 감시와 자동 대체 기능은 아직 구현하지 않았습니다.
@@ -185,7 +195,7 @@ shopfloor-mcp/
 │   ├── Phase3_CoreLogic.md            # ✅ 완료
 │   ├── Phase4_McpServer.md            # ✅ 구현·자동 검증 완료, 클라이언트 수동 확인 대기
 │   ├── Phase5_Evaluation.md           # ✅ Sonnet 평가 사람 검수 완료
-│   ├── Phase6_ResultReplayPage.md     # 🔲 미시작
+│   ├── Phase6_ResultReplayPage.md     # ✅ 구현, Pages 배포 대기
 │   └── Phase7_ConfirmationAndDemo.md  # 🔲 미시작
 ├── config/generator.config.json      # 시드, 정상 범위, E1~E9, 과거 이슈
 ├── src/
@@ -197,8 +207,10 @@ shopfloor-mcp/
 │   ├── server/                       # 묶음·세부 MCP 도구, 자료, 템플릿, stdio 연결
 │   └── validator/                    # V01~V17과 CLI
 ├── eval/scenarios/                   # 평가용 30개·개발용 10개 JSON, 잠금, 질문 목록
-├── tests/                            # 파일 17개, 테스트 194개
-├── scripts/                          # 빌드 자료, 동결, 실행용 복사, 설정, 데모
+├── site/                             # 결과 재생 페이지: index.html, style.css, src/*.ts, data/ (커밋한 JSON)
+├── tests/                            # 파일 19개, 테스트 201개
+├── scripts/                          # 빌드 자료, 동결, 실행용 복사, 설정, 데모, 페이지 데이터와 로컬 서버
+├── .github/workflows/pages.yml       # 결과 재생 페이지 검사와 GitHub Pages 배포
 ├── resources/                        # 용어집, 데이터 안내, 검증된 이상 판단 기준
 ├── docs/MCP_SETUP.md                 # 빌드, 실행 DB, 클라이언트 연결과 데모
 ├── data/                             # 생성 파일 묶음, Git 제외
@@ -206,6 +218,7 @@ shopfloor-mcp/
 ├── package-lock.json
 ├── tsconfig.json
 ├── tsconfig.build.json
+├── tsconfig.site.json
 ├── vitest.config.ts
 ├── .node-version
 ├── .claude/skills/                    # 개발에 쓰는 Claude Code 스킬
@@ -224,7 +237,7 @@ shopfloor-mcp/
 | Phase 3 — 서버 내부 로직 | ✅ 완료 | 일반화한 기간, 상태 6가지, 집계·비교·분석, 감사 기록이 있는 호출 경로, 초안·확정 보호, 테스트 63개 추가와 CLI |
 | Phase 4 — MCP 서버 | ✅ 구현·자동 검증 완료, 클라이언트 수동 확인 대기 | 기본 도구 4개·비교용 10개, 자료 4개·템플릿 2개, 신규 테스트 43개와 stdio 데모 |
 | Phase 5 — 평가 | ✅ Sonnet 평가 사람 검수 완료(93.3% / 86.7%) | 실제 Claude/MCP 실행기, 개발용 개선, 정답·행동 검사, JSON/Markdown 기록과 4개·10개 도구 비교 |
-| Phase 6 — 결과 재생 페이지 | 📋 예정 | GitHub Pages 정적 페이지 |
+| Phase 6 — 결과 재생 페이지 | ✅ 구현, Pages 첫 배포 대기 | 정적 페이지(결과표, 시나리오 단계, 도구 세트 비교, 한·영 전환), 불일치 검사가 있는 데이터 생성, Pages 워크플로, 신규 테스트 7개 |
 | Phase 7 — 확정 화면과 데모 | 📋 예정 | 대화 안의 이슈 확정 폼 (MCP Apps 검토 중, 11번째 도구는 사람 버튼 전용), 데모 영상, 문서 |
 
 Phase 1~6은 개발 1단계(텍스트), Phase 7은 개발 2단계입니다. 상세 내용은 [Phase/](Phase/)에 있습니다.
@@ -239,7 +252,7 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 개발 2단계입니다. 상�
 
 ## 한계점
 
-- Phase 1~5의 데이터·동결 질문·검증된 core·MCP 서버와 실제 모델 평가 도구를 제공합니다. 자동 검사는 잠정 판정이며 최초 N=1 실행은 변동성을 측정하지 못합니다. Sonnet 평가 60건은 사람 검수를 마쳤고 개선 후보 8개를 Phase 5에 기록했습니다(미적용). Desktop 화면 확인, 결과 재생 페이지와 확정 화면은 남아 있습니다.
+- Phase 1~5의 데이터·동결 질문·검증된 core·MCP 서버와 실제 모델 평가 도구를 제공합니다. 자동 검사는 잠정 판정이며 최초 N=1 실행은 변동성을 측정하지 못합니다. Sonnet 평가 60건은 사람 검수를 마쳤고 개선 후보 8개를 Phase 5에 기록했습니다(미적용). 결과 재생 페이지는 구현하고 로컬에서 확인했지만 GitHub Pages 첫 배포는 아직 실행하지 않았습니다. Desktop 화면 확인과 확정 화면은 남아 있습니다.
 - 생산 수량은 시간대별 합계입니다. 검증기는 교대 시간을 제외한 생산 가능 수량을 확인하며, 양품 하나하나의 생산 분까지 증명하지는 못합니다.
 - 가상 데이터만 사용하며, 실제 사내 시스템과 연동하지 않습니다.
 - 로컬 전용입니다. 사용자 PC에서 Claude 데스크톱이 서버를 실행하며, 원격 배포와 로그인은 없습니다.

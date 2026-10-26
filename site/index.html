@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Shopfloor MCP 평가 결과 재생</title>
+<meta name="description" content="Evaluation replay for a production-data MCP server: 30 scenarios, two tool sets, tool calls, answers and human review. Static page, no AI calls.">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="dist/main.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-row">
+    <div>
+      <h1 id="title">Shopfloor MCP 평가 결과 재생</h1>
+      <p id="lede" class="lede"></p>
+    </div>
+    <button id="lang" type="button" class="lang">English</button>
+  </div>
+</header>
+<div class="wrap">
+  <section id="conditions" class="conditions"></section>
+  <nav id="tabs" class="tabs"></nav>
+  <main id="view"><p class="muted">불러오는 중… / Loading…</p></main>
+  <footer id="footer" class="footer"></footer>
+</div>
+<noscript><p class="wrap">이 페이지는 JavaScript가 필요합니다. / This page needs JavaScript.</p></noscript>
+</body>
+</html>
