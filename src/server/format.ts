@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
 export const FORM_DRAFT_MESSAGE = '초안 생성됨. 아직 등록되지 않았습니다. 사람이 화면의 폼에서 확인하고 확정해야 등록됩니다.';
 function summary(raw: Row, ui: boolean): string {
   if (raw.ok === false) return String(raw.message ?? '요청을 처리하지 못했습니다.');
+  if (raw.issueId) return '이슈 등록됨 (' + raw.issueId + '). 사람의 확인으로 등록되었습니다.';
   if (raw.draftId) return '초안 생성됨 (' + raw.draftId + '). '
     + (ui ? '사람이 화면의 폼에서 확인하고 확정해야 등록됩니다.' : '이 환경에서는 확정할 수 없습니다.');
   const range = isRow(raw.resolvedRange) ? raw.resolvedRange.from + '~' + raw.resolvedRange.to + ': ' : '';
@@ -57,7 +58,8 @@ export function formatResult(result: object, context: { tool: string; mode?: str
     ...(context.production ? { note: LINE_COMPARISON_NOTE } : {}),
     request: { tool: context.tool, ...(context.mode ? { mode: context.mode } : {}) },
     units: { achievement: 'ratio', defectRate: 'ratio', producedChangePct: 'percent', changePercentagePoints: 'percentage_points', loss60: 'quantity × 60' },
-    ...(recovery(raw) ? { recovery: recovery(raw) } : {}),
+    // Recovery hints address the model; the app-only confirm result is read by a person in the form.
+    ...(context.tool !== 'confirm_issue' && recovery(raw) ? { recovery: recovery(raw) } : {}),
     truncated,
     ...(truncated.length ? { detailNotice: '합계는 전체 조회 대상 기준이며 상세 내역은 일부입니다. 기간·라인·시간대 조건을 좁혀 다시 조회하세요.' } : {}),
   };

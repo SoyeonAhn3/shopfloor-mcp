@@ -56,6 +56,7 @@ describe('issue preview form surface (MCP Apps)', () => {
       expect(resources).toHaveLength(4);
       expect(resources.some(r => r.uri.startsWith('ui://'))).toBe(false);
       expect((await previewTool(peer))?._meta).toBeUndefined();
+      expect((await peer.client.listTools()).tools.some(t => t.name.includes('confirm'))).toBe(false);
       await expect(peer.client.readResource({ uri: ISSUE_PREVIEW_URI })).rejects.toThrow();
     }
     const { body } = await draft(text);
@@ -64,10 +65,11 @@ describe('issue preview form surface (MCP Apps)', () => {
   });
 
   it('links preview_issue to the form resource for MCP Apps clients in both tool sets', async () => {
-    for (const [peer, tools] of [[form, 4], [formFine, 10]] as const) {
+    for (const [peer, tools] of [[form, 5], [formFine, 11]] as const) {
       const listed = (await peer.client.listTools()).tools;
       expect(listed).toHaveLength(tools);
-      expect(listed.some(t => t.name.includes('confirm'))).toBe(false);
+      // The SDK client lists everything; the host drops app-only tools from the model's list.
+      expect(listed.filter(t => t.name.includes('confirm')).map(t => [t.name, t._meta?.ui])).toEqual([['confirm_issue', { visibility: ['app'] }]]);
       const meta = (await previewTool(peer))?._meta as Record<string, unknown>;
       expect(meta.ui).toEqual({ resourceUri: ISSUE_PREVIEW_URI });
       expect(meta[RESOURCE_URI_META_KEY]).toBe(ISSUE_PREVIEW_URI);

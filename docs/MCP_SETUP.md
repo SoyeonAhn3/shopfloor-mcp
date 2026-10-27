@@ -1,8 +1,8 @@
 # MCP 실행과 확인 / MCP setup
 
-Phase 4의 기본 구성은 도구 4개, 참고자료 4개, 질문 템플릿 2개입니다. 계산은 Phase 3 core를 사용합니다. 서버는 로컬 stdio 프로세스이며 AI 모델이나 API 키를 포함하지 않습니다.
+Phase 4의 기본 구성은 도구 4개, 참고자료 4개, 질문 템플릿 2개입니다. 계산은 Phase 3 core를 사용합니다. 서버는 로컬 stdio 프로세스이며 AI 모델이나 API 키를 포함하지 않습니다. MCP Apps를 선언한 클라이언트에는 Phase 7 이슈 확정 폼(`ui://shopfloor/issue-preview`)과 폼 전용 `confirm_issue`도 등록되며, 다른 클라이언트의 도구 목록은 그대로입니다.
 
-The default interface exposes four tools, four resources and two prompt templates. Claude or another MCP client supplies the model and tool-use loop. The server reuses Phase 3 calculations.
+The default interface exposes four tools, four resources and two prompt templates. Claude or another MCP client supplies the model and tool-use loop. The server reuses Phase 3 calculations. Clients that declare MCP Apps also get the Phase 7 issue confirmation form (`ui://shopfloor/issue-preview`) and its app-only `confirm_issue`; other clients see the same text-only surface.
 
 ## 1. 빌드와 실행용 DB / Build and runtime copy
 
@@ -82,12 +82,12 @@ This demo uses the compiled server over stdio from a different working directory
 
 ## 5. 검증 범위 / Validation scope
 
-- `npm run check`: 타입 검사 + 전체 157개 테스트 + 빌드.
-- `npx vitest run tests/server`: 신규 MCP 테스트 43개. 도구 선택별 동일 결과, 여러 기간, 상태 구분, 권한, 정보 보호, 입력 거절, 실행용 DB 보호, 실제 stdio 연결.
+- `npm run check`: 타입 검사 + 전체 216개 테스트(파일 21개) + 빌드.
+- `npx vitest run tests/server`: MCP 테스트 58개(Phase 4 43개, Phase 7 15개). 도구 선택별 동일 결과, 여러 기간, 상태 구분, 권한, 정보 보호, 입력 거절, 실행용 DB 보호, 실제 stdio 연결, MCP Apps 감지와 확정 폼 연결, 폼 전용 확정(공개 범위, 이슈 1건과 감사 기록, 두 번 클릭·만료·중복 거절).
 - `npm run scenarios:check`: 동결 시나리오 무결성. 동결 생성본이 없는 새 체크아웃에서는 Phase 2 안내를 따릅니다.
 - 리소스와 프롬프트는 클라이언트 지원과 사용자의 선택에 따라 노출됩니다. 등록만으로 매 응답에 자동 삽입되지 않습니다.
-- 자동 프로토콜 검증과 빌드 데모는 통과했습니다. Claude Desktop 화면에서의 표시·자연어 대화는 수동 확인 대상입니다. Phase 5의 모델별 평가와 Phase 7의 확정 화면은 아직 구현하지 않았습니다.
+- 자동 프로토콜 검증과 빌드 데모는 통과했습니다. Claude Desktop 화면에서의 표시·자연어 대화는 수동 확인 대상입니다. 실제 모델 평가는 Phase 5([eval/summary.md](../eval/summary.md))에 있습니다. Phase 7 확정 폼은 MCP Inspector에서 폼 확정 → 이슈 1건 등록 → 재확정 거절까지 확인했습니다(방법은 [Phase 7](../Phase/Phase7_ConfirmationAndDemo.md)). `confirm_issue`는 화면 전용이라 Claude의 도구 목록에 없고, MCP Apps를 선언하지 않은 클라이언트에는 등록되지 않습니다. Claude 데스크톱 확인은 남아 있습니다.
 
-Automated checks pass; Desktop UI and natural-language conversation checks remain manual. Use only dev scenarios D01–D10 for these checks. Prompt retrieval never executes tools. No confirmation tool is registered.
+Automated checks pass; Desktop UI and natural-language conversation checks remain manual. Use only dev scenarios D01–D10 for these checks. Prompt retrieval never executes tools. Live model evaluation results are in [eval/summary.md](../eval/summary.md). The Phase 7 form was checked in MCP Inspector: form confirm → one issue → second confirm rejected (see [Phase 7](../Phase/Phase7_ConfirmationAndDemo.md)). `confirm_issue` is app-only, so it is absent from Claude's tool list, and it is not registered for clients that do not declare MCP Apps. The Claude Desktop check is pending.
 
 SDK/프로토콜 참고: [공식 TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), [공식 서버 개발 안내](https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server).

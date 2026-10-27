@@ -28,7 +28,7 @@ export function createApp(config: LaunchConfig) {
     const preview = (valid.toolset === 'coarse' ? registerCoarse : registerFine)(server, core, () => mcpApps);
     registerResources(server, meta, lines);
     registerPrompts(server, valid.toolset);
-    const issuePreview = registerIssuePreview(server, preview);
+    const issuePreview = registerIssuePreview(server, preview, core.human);
     // Fail closed: capabilities are read once at a 2025-era initialize. A client that never declares MCP Apps
     // there (including 2026-07-28 per-request clients) keeps the text-only surface.
     server.server.oninitialized = () => {

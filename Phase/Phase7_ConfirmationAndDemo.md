@@ -4,7 +4,7 @@
 
 **Status**: 🚧 In Progress
 **Prerequisites**: Phases 1–6 complete (development stage 1)
-**Progress (2026-10-26)**: item 1 decided conditionally (MCP Apps); item 2 implemented and rendered in MCP Inspector; items 3–4 (human-only `confirm_issue`, tests) next. Claude Desktop check (stage C) and items 5–7 later.
+**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Next: Claude Desktop check (stage C), then items 5–7.
 
 ---
 
@@ -24,13 +24,13 @@ The confirm logic already exists in Phase 3. This phase adds only the entry poin
 |---|---|---|---|
 | 1 | Method check: MCP Apps in the current Claude Desktop (decision recorded) | 🚧 conditional (Desktop check pending) | project-specific |
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ rendered in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
-| 3 | `confirm_issue` registration (app-only, UI-capable clients only) + `HumanContext` entry | 🔲 | project-specific |
-| 4 | `tests/server/confirm.test.ts` (visibility, registration, form → confirm → audit) | 🔲 | general |
+| 3 | `confirm_issue` registration (app-only, UI-capable clients only) + `HumanContext` entry | ✅ checked in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
+| 4 | `tests/server/confirm.test.ts` (visibility, registration, form → confirm → audit) | ✅ 10 tests | general |
 | 5 | Demo video (2 min, plan §5 scenes 1–9) + README GIFs (2–3) | 🔲 | project-specific |
 | 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko update | 🔲 | general |
 | 7 | Replay page: demo video section | 🔲 | project-specific |
 
-**Priority scope (2026-10-26):** items 1–4. Items 5–7 follow after them.
+**Priority scope (2026-10-26):** items 1–4. Items 5–7 follow after them. Items 2–4 done 2026-10-27; item 1 waits for stage C.
 
 ---
 
@@ -58,8 +58,10 @@ Adopt MCP Apps for the confirm entry. The decision is conditional because Claude
 
 - 2026-10-26: Inspector 2.12.0 CLI connected over stdio to the built server and listed the 4 tools (`--method tools/list`, runtime copy `data/run/phase7-inspector.db`).
 - 2026-10-26, stage B before item 3: the Inspector 2.12.0 web client declared MCP Apps and rendered the form after `preview_issue` (draft `P-4733…`, L4, 2026-09-24, evidence Q-0002). Clicking 확정 sent `tools/call confirm_issue` through the host to the server, which answered `Tool confirm_issue not found`, as expected before item 3. No issue was inserted, the draft stayed `pending`, and the audit log holds Q-0001–Q-0003 only. So the Inspector declares the UI capability by default and relays the View's `tools/call`.
+- 2026-10-27, stage B after items 3–4 (runtime copy `data/run/phase7-stageb-confirm.db`, operator `demo`): in the form, severity 보통 → 높음 showed `수정: 심각도 보통 → 높음`, and 확정 registered one issue with severity high. The audit holds `edits: {"severity":"high"}` and `human_changes` before/after under `actor: human` (Q-0014). A duplicate title was rejected in the form with the server's message, and the draft stayed `pending` (Q-0007). Calling `confirm_issue` again with a used draft ID was rejected as `already_used` (Q-0012). The four test issues exist in this runtime copy only.
+- The Inspector Apps tab shows its own tool input fields next to the app. Edits belong in the form titled 이슈 등록 확인; the `수정:` text next to the button shows them. Two early attempts changed severity in the input fields instead, so the draft itself was high and `edits` was empty.
 
-Stage B command (the web UI opens with a per-launch token; Tools tab `query_production` → Apps tab `preview_issue` with the returned `Q-…` → open the app):
+Stage B command (the web UI opens with a per-launch token; Tools tab `query_production` → Apps tab `preview_issue` with the returned `Q-…` → open the app → edit in the 이슈 등록 확인 form → 확정; use a new runtime copy per check):
 
 ```powershell
 npm run build
@@ -113,11 +115,23 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 - **No `<form>` submit.** A sandboxed iframe without `allow-forms` can block form submission, so the button is `type="button"` with a click handler.
 - 2026-10-26: the Inspector 2.12.0 CLI (declares no MCP Apps) against the built server listed 4 resources and no `_meta` on `preview_issue`. The Inspector web client declares MCP Apps by default (`defaultAdvertised: true` in its bundle), so stage B uses the web UI.
 
-### Next: items 3–4 (planned)
-- **Human entry outside the public tools.** `createCore()` keeps `tools` without a confirm operation. A separate host entry builds a `HumanContext` with `createHumanContext()` and calls `confirmDraft()`; only the server's `confirm_issue` handler uses it.
-- **`confirm_issue` registration.** Input `{ draftId, edits }` as a strict schema, `_meta.ui.visibility: ["app"]`, registered disabled and enabled by the same `enable()` as the form. `format.ts` gets a summary for confirm results (registered issue, or the server's rejection message).
-- **Tests (item 4).** Absent for text clients and app-only for MCP Apps clients; form-equivalent call → exactly one issue and one success audit with `human_changes`; double click, expiry and duplicate each rejected; no confirm operation on the public tool object.
-- **Check.** Re-run stage B: the same 확정 click should register one issue, and a second click should be rejected.
+### Implementation (items 3–4, 2026-10-27)
+| File | Content |
+|---|---|
+| `src/core/service.ts` | `createCore()` returns `human.confirmDraft(draftId, edits)` next to `tools`. It builds a `HumanContext` with `createHumanContext()` on the core's own session, writer and clocks. `tools` still has no confirm operation |
+| `src/server/ui/issue-preview.ts` | `confirmSchema` (strict: `draftId`, optional `edits` limited to title, severity and description). `registerIssuePreview(server, preview, human)`: `enable()` runs once, turns on the form resource, links `preview_issue`, and registers `confirm_issue` with `registerAppTool`, `_meta.ui.visibility: ["app"]` and `readOnlyHint: false` |
+| `src/server/app.ts` | Passes `core.human` only to `registerIssuePreview()` |
+| `src/server/format.ts` | Summary `이슈 등록됨 (I-…)` for a confirm result. `confirm_issue` results carry no `recovery` hint, since those hints address the model |
+| `tests/server/confirm.test.ts` | 10 tests: absent (`not found`) for text and other-MIME clients; app-only with a strict schema in coarse and fine; no confirm operation in `core.tools`; form-equivalent call → one issue with the edits, draft `confirmed`, one `human` success audit with `human_changes`; confirm without edits; double click, expiry, duplicate (the draft stays usable with a new title); edits to line, date or evidence and unknown keys rejected; another session's draft and a viewer denied and audited |
+| `tests/server/issue-preview.test.ts` | Form clients list 5 / 11 tools with `confirm_issue` app-only; text clients list no confirm tool |
+
+### Design Decisions (items 3–4)
+- **Registered in `enable()`, not registered disabled.** A disabled tool answers `Tool confirm_issue disabled`, which tells a text client the tool exists. Registering it only after `initialize` declared MCP Apps gives `not found`, as plan §3-2 asks ("not registered at all"). The form resource is still registered disabled.
+- **The entry accepts only what the form can edit.** Line, production date and evidence stay as Claude's draft cited them. Core re-checks evidence anyway, but the entry refuses these fields first.
+- **Schema rejections are not audited.** Invalid arguments are refused by the SDK's input validation before the handler, as for every other tool. Rejections by draft state (used, expired, duplicate, other session, role) reach core and are audited.
+- **A rejected confirm's audit row has no `draft_id`.** The failure result carries no draft ID, so the ID is only in `params`. This is existing core behaviour and stays unchanged; the tests read `params`.
+- **`descriptions.ts` is unchanged,** so `descriptionsHash` and the frozen eval conditions stay the same. The `confirm_issue` description lives in `issue-preview.ts`, because the model never sees it.
+- Verification: `npm run check` passed with 21 test files and 216 tests.
 
 ---
 
@@ -144,7 +158,7 @@ Show it working (plan §6): a short video from Claude Desktop, GIFs for the READ
 User:   이걸 이슈로 등록해줘
 Claude: 초안을 만들었습니다. 아래 폼에서 확인하고 확정해 주세요.   (preview form appears)
 Human:  severity medium → high, clicks 확정
-Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["medium","high"]} → confirm
+Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"high"}, human_changes before/after
 ```
 
 ---
@@ -191,6 +205,7 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 | 2026-10-26 | Item 2 implemented: form View, gated resource, `preview_issue` UI meta, form-client draft text, 5 tests (206 total) |
 | 2026-10-26 | Stage B before item 3: form rendered in the Inspector web client; 확정 reached the server (`confirm_issue` not yet registered) |
 | 2026-10-26 | Progress summary, implemented form section, items 3–4 plan; README sync |
+| 2026-10-27 | Items 3–4 implemented: human entry `core.human`, app-only `confirm_issue` registered in `enable()`, 10 confirm tests (216 total); stage B re-run passed |
 
 ---
 ---
@@ -201,7 +216,7 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 
 **상태**: 🚧 진행 중
 **선행 조건**: Phase 1~6 완료 (개발 1단계)
-**진행 상황 (2026-10-26)**: 1번은 조건부 결정(MCP Apps), 2번은 구현하고 MCP Inspector에서 렌더링까지 확인했다. 다음은 3~4번(사람 전용 `confirm_issue`, 테스트)이다. Claude 데스크톱 확인(C 단계)과 5~7번은 그 뒤에 한다.
+**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 다음은 Claude 데스크톱 확인(C 단계), 그다음 5~7번이다.
 
 ---
 
@@ -221,13 +236,13 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 |---|---|---|---|
 | 1 | 방식 확인: 현재 Claude 데스크톱의 MCP Apps 지원 (결정 기록) | 🚧 조건부 (데스크톱 확인 전) | 전용 |
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ Inspector 렌더링 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
-| 3 | `confirm_issue` 등록 (화면 전용, 화면 지원 클라이언트만) + `HumanContext` 입구 | 🔲 | 전용 |
-| 4 | `tests/server/confirm.test.ts` (공개 범위, 등록 조건, 폼 → 확정 → 감사 기록) | 🔲 | 범용 |
+| 3 | `confirm_issue` 등록 (화면 전용, 화면 지원 클라이언트만) + `HumanContext` 입구 | ✅ Inspector 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
+| 4 | `tests/server/confirm.test.ts` (공개 범위, 등록 조건, 폼 → 확정 → 감사 기록) | ✅ 테스트 10개 | 범용 |
 | 5 | 데모 영상 (2분, 기획서 5장 장면 1~9) + README GIF (2~3개) | 🔲 | 전용 |
 | 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko 갱신 | 🔲 | 범용 |
 | 7 | 결과 재생 페이지: 데모 영상 칸 | 🔲 | 전용 |
 
-**우선 범위 (2026-10-26):** 1~4번. 5~7번은 그다음에 진행한다.
+**우선 범위 (2026-10-26):** 1~4번. 5~7번은 그다음에 진행한다. 2~4번은 2026-10-27에 완료했고, 1번은 C 단계를 기다린다.
 
 ---
 
@@ -255,8 +270,10 @@ Server: ISS-026 registered; audit: draft P-… → human_changes {"severity":["m
 
 - 2026-10-26: Inspector 2.12.0 CLI가 stdio로 빌드된 서버에 연결해 도구 4개를 가져왔다 (`--method tools/list`, 실행용 복사본 `data/run/phase7-inspector.db`).
 - 2026-10-26, 3번 전 B 단계: Inspector 2.12.0 웹 화면이 MCP Apps를 선언했고, `preview_issue` 다음에 폼이 떴다 (초안 `P-4733…`, L4, 2026-09-24, 근거 Q-0002). 확정을 누르자 `tools/call confirm_issue`가 호스트를 거쳐 서버까지 갔고, 서버는 `Tool confirm_issue not found`로 답했다. 3번 전이므로 예상한 결과다. 이슈는 등록되지 않았고, 초안은 `pending`으로 남았으며, 감사 기록은 Q-0001~Q-0003뿐이다. Inspector는 UI capability를 기본으로 선언하고, 화면의 `tools/call`을 서버로 전달한다.
+- 2026-10-27, 3~4번 후 B 단계 (실행용 복사본 `data/run/phase7-stageb-confirm.db`, operator `demo`): 폼에서 심각도를 보통 → 높음으로 바꾸자 `수정: 심각도 보통 → 높음`이 표시됐고, 확정하니 심각도 high로 이슈 1건이 등록됐다. 감사 기록에는 `actor: human`으로 `edits: {"severity":"high"}`와 수정 전후 `human_changes`가 남았다(Q-0014). 중복 제목은 폼에서 서버 안내와 함께 거절됐고 초안은 `pending`으로 남았다(Q-0007). 이미 사용한 초안 번호로 `confirm_issue`를 다시 부르자 `already_used`로 거절됐다(Q-0012). 확인용 이슈 4건은 이 실행용 복사본에만 있다.
+- Inspector Apps 탭에는 앱 옆에 Inspector 자체의 도구 입력 칸이 있다. 수정은 "이슈 등록 확인" 폼에서 해야 하고, 버튼 옆 `수정:` 문구로 확인한다. 처음 두 번은 입력 칸에서 심각도를 바꿔서 초안 자체가 high였고 `edits`는 비어 있었다.
 
-B 단계 실행 명령 (웹 화면은 실행마다 새 토큰으로 열린다. Tools 탭 `query_production` → 받은 `Q-…`로 Apps 탭 `preview_issue` → 앱 열기):
+B 단계 실행 명령 (웹 화면은 실행마다 새 토큰으로 열린다. Tools 탭 `query_production` → 받은 `Q-…`로 Apps 탭 `preview_issue` → 앱 열기 → "이슈 등록 확인" 폼에서 수정 → 확정. 확인마다 새 실행용 복사본을 쓴다):
 
 ```powershell
 npm run build
@@ -302,11 +319,23 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **`<form>` 제출을 쓰지 않는다.** `allow-forms`가 없는 sandbox iframe에서는 폼 제출이 막힐 수 있으므로 `type="button"` 버튼의 클릭 처리로 확정한다.
 - 2026-10-26: MCP Apps를 선언하지 않는 Inspector 2.12.0 CLI로 빌드된 서버에 연결하니 리소스 4개, `preview_issue`의 `_meta` 없음으로 나왔다. Inspector 웹 화면은 MCP Apps를 기본으로 선언하므로(번들의 `defaultAdvertised: true`) B 단계는 웹 화면으로 한다.
 
-### 다음: 3~4번 (예정)
-- **공개 도구 밖의 사람 입구.** `createCore()`의 `tools`에는 계속 확정 연산을 넣지 않는다. 별도의 호스트 입구가 `createHumanContext()`로 `HumanContext`를 만들어 `confirmDraft()`를 부르고, 이 입구는 서버의 `confirm_issue` 처리기만 쓴다.
-- **`confirm_issue` 등록.** 입력은 `{ draftId, edits }` strict 스키마, `_meta.ui.visibility: ["app"]`로 선언한다. 꺼진 상태로 등록하고 폼과 같은 `enable()`에서 켠다. `format.ts`에는 확정 결과 요약(등록된 이슈, 또는 서버의 거절 안내)을 추가한다.
-- **테스트 (4번).** 텍스트 클라이언트에는 없고 MCP Apps 클라이언트에는 화면 전용으로만 있는지, 폼과 같은 호출로 이슈 1건과 `human_changes`가 담긴 성공 감사 기록 1건이 남는지, 두 번 클릭·만료·중복이 각각 거절되는지, 공개 도구 객체에 확정 연산이 없는지 확인한다.
-- **확인.** B 단계를 다시 한다. 같은 확정 클릭으로 이슈가 1건 등록되고, 두 번째 클릭은 거절되어야 한다.
+### 구현 내용 (3~4번, 2026-10-27)
+| 파일 | 내용 |
+|---|---|
+| `src/core/service.ts` | `createCore()`가 `tools` 옆에 `human.confirmDraft(draftId, edits)`를 돌려준다. core 자신의 세션, writer, clocks로 `createHumanContext()`를 써서 `HumanContext`를 만든다. `tools`에는 계속 확정 연산이 없다 |
+| `src/server/ui/issue-preview.ts` | `confirmSchema`(strict: `draftId`, 제목·심각도·설명만 받는 선택 `edits`). `registerIssuePreview(server, preview, human)`: `enable()`은 한 번만 실행되며 폼 리소스를 켜고, `preview_issue`를 연결하고, `registerAppTool`로 `confirm_issue`를 `_meta.ui.visibility: ["app"]`, `readOnlyHint: false`로 등록한다 |
+| `src/server/app.ts` | `core.human`은 `registerIssuePreview()`에만 넘긴다 |
+| `src/server/format.ts` | 확정 결과 요약 `이슈 등록됨 (I-…)`. `recovery` 안내는 모델용이므로 `confirm_issue` 결과에는 붙이지 않는다 |
+| `tests/server/confirm.test.ts` | 테스트 10개: 텍스트·다른 MIME 클라이언트에는 없음(`not found`), coarse·fine에서 strict 스키마의 화면 전용 도구, `core.tools`에 확정 연산 없음, 폼과 같은 호출 → 수정 반영된 이슈 1건·초안 `confirmed`·`human_changes`가 담긴 `human` 성공 감사 기록 1건, 수정 없는 확정, 두 번 클릭·만료·중복(제목을 바꾸면 같은 초안으로 재확정 가능), 라인·생산일·근거 수정과 알 수 없는 칸 거절, 다른 세션 초안과 viewer 거절 및 감사 기록 |
+| `tests/server/issue-preview.test.ts` | 폼 클라이언트는 도구 5개 / 11개이고 `confirm_issue`는 화면 전용, 텍스트 클라이언트에는 확정 도구 없음 |
+
+### 설계 결정 사항 (3~4번)
+- **꺼진 상태로 등록하지 않고 `enable()`에서 처음 등록한다.** 꺼진 도구는 `Tool confirm_issue disabled`로 답해서 텍스트 클라이언트에 도구가 있다는 사실을 드러낸다. `initialize`에서 MCP Apps를 선언한 뒤에만 등록하면 `not found`로 답하므로 기획서 3-2의 "아예 등록하지 않는다"와 맞는다. 폼 리소스는 계속 꺼진 상태로 등록한다.
+- **입구는 폼이 고칠 수 있는 항목만 받는다.** 라인, 생산일, 근거는 Claude 초안이 인용한 그대로 둔다. core도 근거를 다시 확인하지만, 입구에서 먼저 거절한다.
+- **스키마에서 거절된 요청은 감사 기록에 남지 않는다.** 다른 도구와 마찬가지로 잘못된 인자는 처리기 전에 SDK 입력 검증에서 거절된다. 초안 상태에 따른 거절(사용됨, 만료, 중복, 다른 세션, 역할)은 core까지 가서 기록된다.
+- **거절된 확정의 감사 기록에는 `draft_id`가 비어 있다.** 실패 결과에 초안 번호가 없어서 번호는 `params`에만 남는다. 기존 core 동작이며 바꾸지 않았고, 테스트는 `params`를 읽는다.
+- **`descriptions.ts`는 바꾸지 않았다.** 그래서 `descriptionsHash`와 동결된 평가 조건은 그대로다. `confirm_issue` 설명은 모델이 보지 않으므로 `issue-preview.ts`에 둔다.
+- 확인: `npm run check` 통과 (테스트 파일 21개, 테스트 216개).
 
 ---
 
@@ -369,3 +398,4 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 2026-10-26 | 2번 구현: 폼 화면, 조건부 리소스, `preview_issue` UI 메타, 폼 클라이언트용 초안 문구, 테스트 5개 (전체 206개) |
 | 2026-10-26 | 3번 전 B 단계: Inspector 웹 화면에서 폼 렌더링 확인, 확정 요청이 서버까지 도달 (`confirm_issue`는 아직 미등록) |
 | 2026-10-26 | 진행 상황 요약, 구현된 폼 섹션 정리, 3~4번 계획 기록, README 동기화 |
+| 2026-10-27 | 3~4번 구현: 사람 입구 `core.human`, `enable()`에서 등록하는 화면 전용 `confirm_issue`, 확정 테스트 10개 (전체 216개), B 단계 재확인 통과 |

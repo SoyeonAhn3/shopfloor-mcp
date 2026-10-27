@@ -8,10 +8,11 @@ import { lineInfo, productionSchema, querySchema, type Query } from './query.js'
 import { breakdownLoss, getAchievement, getProduction } from './metrics.js';
 import { compareDefects, getDefects, getDowntime, windowSchema } from './records.js';
 import { compareLines, detectAnomalies, hourlyPattern } from './analysis.js';
-import { createDraft, type ToolContext } from './issues.js';
+import { confirmDraft, createDraft, createHumanContext, type DraftEdits, type ToolContext } from './issues.js';
 
 export interface CoreOptions { dbPath: string; sessionId: string; userName: string; role: Role; clocks?: Clocks }
-// Public operations all validate, guard, audit and redact. No arbitrary SQL or confirm operation is exposed.
+// Public operations all validate, guard, audit and redact. No arbitrary SQL or confirm operation is exposed in tools;
+// confirmation lives on the separate human entry, which only the host's button handler receives.
 export function createCore(options: CoreOptions) {
   roleSchema.parse(options.role);
   z.string().trim().min(1).max(200).parse(options.sessionId);
@@ -64,5 +65,7 @@ export function createCore(options: CoreOptions) {
     compareLines: (raw: unknown) => query('compare_lines', raw, q => compareLines(db, q)),
     createDraft: (raw: unknown) => createDraft(ctx, raw),
   };
-  return { tools, close: () => { db.close(); writer.close(); } };
+  const { actor: _, ...base } = ctx;
+  const human = { confirmDraft: (draftId: string, edits: DraftEdits = {}) => confirmDraft(createHumanContext(base), draftId, edits) };
+  return { tools, human, close: () => { db.close(); writer.close(); } };
 }

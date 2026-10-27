@@ -250,6 +250,25 @@ These came from frozen eval results, so they must not be applied to the current 
 | 6 | S17 | Unsupported follow-up advice ("설비 로그") | Standard wording for missing data: confirm with the floor, check for missing input | descriptions / glossary |
 | 7 | S11, S12 | Value check satisfied by unrelated numbers (dates, other quantities) | Exclude numbers inside dates and require nearby labels; new grader version, regrade separately | `src/eval/grade.ts` (new `graderHash`) |
 | 8 | S09 | Level of detail differed between runs | Measure variance with `--repeat` before treating it as a tool-set effect | eval runs |
+| 9 | External feedback (cost) | No prompt caching: every model call resends the tool definitions at full price (about 27k input tokens per question coarse, 54k fine) | Add `cache_control` to eval requests so tool definitions and the system prompt are read from cache; token and cost figures are then not directly comparable with the N=1 baseline | `src/eval/claude.ts` |
+| 10 | Run plan | N=1 cannot separate an improvement from run-to-run variation | Run v1 and v2 with `--repeat 3` on both tool sets and compare per-scenario pass counts (k/3); see the follow-up run plan below | eval runs |
+
+### Follow-up run plan (`--repeat 3`, not run)
+
+Purpose: tell whether v2 answers better than v1, rather than a one-off difference. A v2-only repeat would still be compared against the N=1 v1 baseline, so v1 is repeated too.
+
+1. Apply #9 (caching) and #7 (grader), then regrade the existing v1 records with the new grader so both versions use one grader.
+2. Run the current frozen v1 with `--repeat 3` on both tool sets as a new baseline, before any description changes. Existing records stay untouched.
+3. Apply #1–#6 through dev scenarios (D-set) only, then re-freeze descriptions.
+4. Run v2 with `--repeat 3` on both tool sets.
+5. Human review, then compare v1 and v2 by per-scenario pass count (0/3–3/3) first and mean accuracy with its range second.
+
+Reading the results:
+- Three repeats show large shifts (for example 0/3 → 3/3) and unstable scenarios (1/3, 2/3); a 1–2 scenario change in mean accuracy can still be noise.
+- #1–#6 are applied together, so a v2 gain cannot be attributed to a single change.
+- Scenarios failing 0/3 in v2 for model-judgement reasons (not missing descriptions) are the input for the deferred Opus 5.5 comparison, coarse only.
+
+Cost: four runs of 30 × 3 = 360 records. API cost is roughly 6× the N=1 pair (about $5.5) without caching, lower with #9; human review of 360 records is the larger load. If review time is short, v2 alone (180 records) is the fallback, with the weaker N=1 baseline noted.
 
 ## Phase 5 Skill Classification
 
@@ -519,6 +538,25 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 6 | S17 | 근거 없는 후속 조치 제안("설비 로그") | 미입력 시 권할 조치를 정해진 표현으로 안내(현장 확인, 입력 누락 점검) | 도구 설명 / 용어집 |
 | 7 | S11, S12 | 날짜·다른 수량의 숫자로 값 검사 통과 | 날짜 속 숫자 제외, 주변 항목명 확인. 새 채점기 버전으로 별도 재채점 | `src/eval/grade.ts` (새 `graderHash`) |
 | 8 | S09 | 실행마다 상세 수준이 다름 | 도구 구성 효과로 보기 전에 `--repeat`로 변동 측정 | 평가 실행 |
+| 9 | 외부 피드백(비용) | 프롬프트 캐싱 미사용: 모델 호출마다 도구 정의를 정가로 다시 보냄(질문당 입력 coarse 약 2.7만, fine 약 5.4만 토큰) | 평가 요청에 `cache_control`을 넣어 도구 정의·시스템 프롬프트를 캐시로 읽음. 이후 토큰·비용 수치는 기존 N=1 결과와 바로 비교하지 않음 | `src/eval/claude.ts` |
+| 10 | 실행 계획 | N=1로는 개선 효과와 실행 간 변동을 구분하지 못함 | v1과 v2를 두 도구 구성에서 `--repeat 3`으로 실행하고 시나리오별 통과 횟수(k/3)를 비교. 아래 후속 실행 계획 참고 | 평가 실행 |
+
+### 후속 실행 계획 (`--repeat 3`, 미실행)
+
+목적: v2가 v1보다 실제로 더 나은지, 한 번의 우연인지 구분한다. v2만 반복하면 비교 대상이 여전히 N=1인 v1이므로 v1도 반복한다.
+
+1. 9번(캐싱)과 7번(채점기)을 먼저 반영하고, 기존 v1 기록을 새 채점기로 재채점해 두 버전의 채점 기준을 맞춘다.
+2. 도구 설명을 바꾸기 전에 현재 동결된 v1을 두 도구 구성에서 `--repeat 3`으로 실행해 새 기준점으로 삼는다. 기존 기록은 건드리지 않는다.
+3. 1~6번은 개발용 시나리오(D 세트)로만 반영하고 도구 설명을 다시 동결한다.
+4. v2를 두 도구 구성에서 `--repeat 3`으로 실행한다.
+5. 사람 검수 후 v1과 v2를 시나리오별 통과 횟수(0/3~3/3)로 먼저 비교하고, 평균 정답률과 범위는 그다음에 본다.
+
+결과 해석:
+- 3회 반복으로는 큰 변화(예: 0/3 → 3/3)와 불안정한 시나리오(1/3, 2/3)가 보인다. 평균 정답률의 1~2문항 차이는 여전히 우연일 수 있다.
+- 1~6번을 함께 반영하므로 v2가 좋아져도 어느 수정의 효과인지는 구분하지 못한다.
+- v2에서 설명 부족이 아닌 모델 판단 때문에 0/3으로 실패한 시나리오가 연기된 Opus 5.5 비교(coarse만)의 대상이 된다.
+
+비용: 30 × 3 실행 4개, 기록 360건. API 비용은 캐시 없이 N=1 한 쌍(약 $5.5)의 약 6배이고 9번을 반영하면 줄어든다. 더 큰 부담은 360건의 사람 검수다. 검수 시간이 부족하면 v2만 실행(180건)하고, 기준점이 N=1이라는 한계를 결과에 적는다.
 
 ## Phase 5 스킬 범용/전용 분류
 
