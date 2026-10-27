@@ -15,9 +15,7 @@
   질문 → 도구 호출 → 서버 응답 → 최종 답변 → 정답값 · 묶음/세부 도구 구성 비교
 </p>
 
-<p align="center">
-  🎬 <a href="docs/media/shopfloor-promo.mp4"><b>90초 소개 영상 보기</b></a>
-</p>
+https://github.com/user-attachments/assets/1206e12b-e5bd-408a-937a-4151fa7e9af9
 
 ## 개요
 
@@ -210,7 +208,6 @@ shopfloor-mcp/
 ├── docs/INSTALL.md        # 단계별 설치 안내 (새 클론에서 확인)
 ├── docs/EVALUATION.md     # 평가 결과
 ├── docs/MCP_SETUP.md      # 클라이언트 연결 안내
-├── docs/media/            # 90초 소개 영상
 ├── plan/                  # 기획서와 데이터셋 설계서
 ├── Phase/                 # Phase별 설계와 구현 기록
 ├── .github/workflows/     # 재생 페이지 검사와 GitHub Pages 배포

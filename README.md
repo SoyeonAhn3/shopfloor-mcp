@@ -15,9 +15,7 @@
   question → tool calls → server responses → final answer → answer key · coarse vs fine tool sets
 </p>
 
-<p align="center">
-  🎬 <a href="docs/media/shopfloor-promo.mp4"><b>Watch the 90-second overview video</b></a>
-</p>
+https://github.com/user-attachments/assets/1206e12b-e5bd-408a-937a-4151fa7e9af9
 
 ## Overview
 
@@ -210,7 +208,6 @@ shopfloor-mcp/
 ├── docs/INSTALL.md        # Step-by-step installation (verified on a clean clone)
 ├── docs/EVALUATION.md     # Evaluation report
 ├── docs/MCP_SETUP.md      # Client connection guide
-├── docs/media/            # 90-second overview video
 ├── plan/                  # Project plan and dataset design
 ├── Phase/                 # Per-phase design and implementation records
 ├── .github/workflows/     # Replay page check and GitHub Pages deployment
