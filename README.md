@@ -12,8 +12,11 @@
 
 <p align="center">
   🔎 <b>See how Claude answered all 30 eval questions</b><br>
-  question → tool calls → server responses → final answer → answer key · coarse vs fine tool sets<br>
-  👉 <a href="https://soyeonahn3.github.io/shopfloor-mcp/">soyeonahn3.github.io/shopfloor-mcp</a>
+  question → tool calls → server responses → final answer → answer key · coarse vs fine tool sets
+</p>
+
+<p align="center">
+  🎬 <a href="docs/media/shopfloor-promo.mp4"><b>Watch the 90-second overview video</b></a>
 </p>
 
 ## Overview
@@ -108,7 +111,7 @@ Errors tell Claude what went wrong and what is possible, so it can recover. Exam
 | coarse (default) | 28/30 (93.3%) | 1.60 | 9.88 |
 | fine | 26/30 (86.7%) | 1.97 | 10.32 |
 
-Every step can be replayed at [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/).
+Every step can be replayed at [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/). Conditions, per-type results and limits: [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Quick Start
 
@@ -130,6 +133,8 @@ npm run check
 ```
 
 `generate` writes `production.db`, `answer_key.json`, `validation.json` and a config snapshot to `data/` (git-ignored). Existing generation files are never overwritten; use `npm run generate -- --out-dir <new-dir>` for another bundle. `check` runs type checking, all tests and the build.
+
+On Windows without C++ build tools, `npm ci` fails with `gyp ERR! find VS`; use `npm ci --ignore-scripts` instead. Step-by-step setup with expected results: [docs/INSTALL.md](docs/INSTALL.md).
 
 ### Connect to Claude
 
@@ -171,7 +176,7 @@ The confirmation form can be viewed in MCP Inspector without Claude Desktop; see
 ## Testing
 
 ```sh
-npm run check                 # typecheck + 216 tests in 21 files + build
+npm run check                 # typecheck + 221 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -192,7 +197,7 @@ shopfloor-mcp/
 │   ├── core/              # Periods, metrics, analysis, audit, guarded issue drafts
 │   ├── server/            # MCP tools (coarse/fine), resources, prompts, stdio, MCP Apps form (ui/)
 │   └── eval/              # Eval runner, grading, freeze checks, human review
-├── tests/                 # 216 tests in 21 files
+├── tests/                 # 221 tests in 22 files
 ├── eval/
 │   ├── scenarios/         # 30 eval + 10 dev scenarios, lock, question catalogue
 │   ├── runs/              # Recorded eval runs
@@ -202,7 +207,10 @@ shopfloor-mcp/
 ├── resources/             # Glossary, data guide, anomaly criteria (exposed as MCP resources)
 ├── config/                # Data generator settings (seed, ranges, planted events E1–E9)
 ├── scripts/               # Demos, runtime DB copy, client config, freeze, page data
+├── docs/INSTALL.md        # Step-by-step installation (verified on a clean clone)
+├── docs/EVALUATION.md     # Evaluation report
 ├── docs/MCP_SETUP.md      # Client connection guide
+├── docs/media/            # 90-second overview video
 ├── plan/                  # Project plan and dataset design
 ├── Phase/                 # Per-phase design and implementation records
 ├── .github/workflows/     # Replay page check and GitHub Pages deployment
@@ -236,6 +244,8 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 | [plan/01_production-mcp-server.md](plan/01_production-mcp-server.md) | Project plan: problem, tools, issue confirmation principle, evaluation, scope, decisions (Korean) |
 | [plan/01a_production-mcp-dataset.md](plan/01a_production-mcp-dataset.md) | Dataset design: tables, planted events E1–E9, answer key, validation rules (Korean) |
 | [Phase/](Phase/) | Per-phase design decisions, implementation and checks (English and Korean) |
+| [docs/INSTALL.md](docs/INSTALL.md) | Clone → install → generate → check → runtime copy → Claude Desktop, with expected results |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | Evaluation conditions, results by type, failures, tuning log, limits |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | Build, runtime DB copy, Claude Desktop/Code connection, tool list |
 | [eval/scenarios/README.md](eval/scenarios/README.md) | Questions and expected behavior for all 40 scenarios (Korean) |
 | [eval/summary.md](eval/summary.md) | Eval runs, costs and final accuracy |
@@ -245,7 +255,7 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 ## Limitations
 
 - Evaluation is N=1, so run-to-run variance is not measured. Automatic checks are provisional; final accuracy comes from human review.
-- Eight improvement candidates from human review are recorded in Phase 5 but not applied.
+- Phase 5 follow-ups #1–#4 are implemented: metric descriptions, availability policy, Korean downtime labels and human selection of final issue severity. Descriptions/policy changed; new dev runs, refreeze and model reevaluation are pending. Published accuracy still describes v1; #5–#10 remain pending.
 - The confirmation form is checked in MCP Inspector only; Claude Desktop acceptance is pending. The server cannot see who pressed the button: the guarantee rests on app-only visibility in the host, no registration for clients without MCP Apps, and one-time draft IDs.
 - Synthetic data only; no connection to real plant systems. Simplified compared to real MES data: one product per line, no production orders, no equipment-level records, no public holidays.
 - Production quantities are hourly totals; the validator checks capacity but cannot prove the minute each unit was produced.
@@ -256,13 +266,13 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 
 **Phase 7 (next)**
 - Claude Desktop check of the form and of `confirm_issue`'s absence from Claude's tool list
-- 2-minute demo video, README GIFs, `docs/INSTALL.md`, `docs/EVALUATION.md`, video section on the replay page
+- Demo video (about 6 minutes), README GIFs, video section on the replay page
 
 **Evaluation follow-up**
 - Work through the ten follow-up items in `Phase/Phase5_Evaluation.md`:
   - Enable prompt caching for eval requests, fix the grader's value check and regrade the v1 records
-  - Re-run the current v1 with `--repeat 3` on both tool sets as a baseline
-  - Apply the other candidates through dev scenarios, re-freeze descriptions and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
+  - Re-run the preserved v1 server source in a separate checkout with `--repeat 3` on both tool sets as a baseline; the current source already includes #1–#4
+  - Verify #1–#4 and apply the remaining candidates through dev scenarios, identify server versions, re-freeze changed descriptions/policy and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
 - Compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain (deferred)
 
 ---

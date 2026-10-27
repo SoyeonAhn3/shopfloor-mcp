@@ -12,8 +12,11 @@
 
 <p align="center">
   🔎 <b>평가 질문 30개에 Claude가 어떻게 답했는지 확인하세요</b><br>
-  질문 → 도구 호출 → 서버 응답 → 최종 답변 → 정답값 · 묶음/세부 도구 구성 비교<br>
-  👉 <a href="https://soyeonahn3.github.io/shopfloor-mcp/">soyeonahn3.github.io/shopfloor-mcp</a>
+  질문 → 도구 호출 → 서버 응답 → 최종 답변 → 정답값 · 묶음/세부 도구 구성 비교
+</p>
+
+<p align="center">
+  🎬 <a href="docs/media/shopfloor-promo.mp4"><b>90초 소개 영상 보기</b></a>
 </p>
 
 ## 개요
@@ -108,7 +111,7 @@ Claude는 해석만 하고 계산하지 않습니다. 답변에 나오는 모든
 | coarse (기본) | 28/30 (93.3%) | 1.60 | 9.88 |
 | fine | 26/30 (86.7%) | 1.97 | 10.32 |
 
-모든 단계는 [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/)에서 다시 볼 수 있습니다.
+모든 단계는 [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/)에서 다시 볼 수 있습니다. 실행 조건, 유형별 결과, 한계는 [docs/EVALUATION.md](docs/EVALUATION.md)에 있습니다.
 
 ## 빠른 시작
 
@@ -130,6 +133,8 @@ npm run check
 ```
 
 `generate`는 `data/`(Git 제외)에 `production.db`, `answer_key.json`, `validation.json`, 설정 스냅샷을 만듭니다. 기존 생성 파일은 덮어쓰지 않으므로, 다른 생성본은 `npm run generate -- --out-dir <새 폴더>`로 만듭니다. `check`는 타입 검사, 전체 테스트, 빌드를 실행합니다.
+
+C++ 빌드 도구가 없는 Windows에서는 `npm ci`가 `gyp ERR! find VS`로 실패합니다. 이때는 `npm ci --ignore-scripts`를 사용합니다. 단계별 설치와 정상 결과는 [docs/INSTALL.md](docs/INSTALL.md)에 있습니다.
 
 ### Claude에 연결
 
@@ -171,7 +176,7 @@ npm run mcp:demo -- --db data/production.db
 ## 테스트
 
 ```sh
-npm run check                 # typecheck + 216 tests in 21 files + build
+npm run check                 # typecheck + 221 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -192,7 +197,7 @@ shopfloor-mcp/
 │   ├── core/              # 기간, 집계, 분석, 감사 기록, 이슈 초안 보호
 │   ├── server/            # MCP 도구(coarse/fine), 리소스, 프롬프트, stdio, MCP Apps 폼(ui/)
 │   └── eval/              # 평가 실행기, 채점, 동결 검사, 사람 검수
-├── tests/                 # 파일 21개, 테스트 216개
+├── tests/                 # 파일 22개, 테스트 221개
 ├── eval/
 │   ├── scenarios/         # 평가용 30개·개발용 10개 시나리오, 잠금, 질문 목록
 │   ├── runs/              # 평가 실행 기록
@@ -202,7 +207,10 @@ shopfloor-mcp/
 ├── resources/             # 용어집, 데이터 안내, 이상 판단 기준 (MCP 리소스로 제공)
 ├── config/                # 데이터 생성 설정 (시드, 정상 범위, 정답 사건 E1~E9)
 ├── scripts/               # 데모, 실행용 DB 복사, 클라이언트 설정, 동결, 페이지 데이터
+├── docs/INSTALL.md        # 단계별 설치 안내 (새 클론에서 확인)
+├── docs/EVALUATION.md     # 평가 결과
 ├── docs/MCP_SETUP.md      # 클라이언트 연결 안내
+├── docs/media/            # 90초 소개 영상
 ├── plan/                  # 기획서와 데이터셋 설계서
 ├── Phase/                 # Phase별 설계와 구현 기록
 ├── .github/workflows/     # 재생 페이지 검사와 GitHub Pages 배포
@@ -236,6 +244,8 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 | [plan/01_production-mcp-server.md](plan/01_production-mcp-server.md) | 기획서: 문제, 도구, 이슈 확정 원칙, 평가, 범위, 결정 사항 (한국어) |
 | [plan/01a_production-mcp-dataset.md](plan/01a_production-mcp-dataset.md) | 데이터셋 설계서: 테이블, 정답 사건 E1~E9, 정답표, 검증 규칙 (한국어) |
 | [Phase/](Phase/) | Phase별 설계 결정, 구현 내용, 완료 검사 (영어·한국어) |
+| [docs/INSTALL.md](docs/INSTALL.md) | 저장소 받기 → 설치 → 데이터 생성 → 검사 → 실행용 복사본 → Claude 데스크톱, 단계별 정상 결과 포함 |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | 평가 조건, 유형별 결과, 실패 내용, 도구 설명 조정 기록, 한계 |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | 빌드, 실행용 DB 복사, Claude 데스크톱·Code 연결, 도구 목록 |
 | [eval/scenarios/README.md](eval/scenarios/README.md) | 시나리오 40개의 질문과 기대 행동 (한국어) |
 | [eval/summary.md](eval/summary.md) | 평가 실행, 비용, 최종 정답률 |
@@ -245,7 +255,7 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 ## 한계점
 
 - 평가는 N=1이라 실행 간 변동성을 측정하지 못합니다. 자동 검사는 잠정 판정이며 최종 정답률은 사람 검수로 정합니다.
-- 사람 검수에서 나온 개선 후보 8개는 Phase 5에 기록만 하고 아직 반영하지 않았습니다.
+- Phase 5 후속 1~4번을 구현했습니다: 지표 설명, 제공 가능 여부 정책, 비가동 한국어 이름, 사람의 최종 심각도 선택. 설명·정책이 바뀌어 새 개발용 실행·재동결·모델 재평가는 대기 중입니다. 공개 정답률은 기존 v1 결과이며 5~10번은 미완료입니다.
 - 확정 폼은 MCP Inspector에서만 확인했고 Claude 데스크톱 확인은 남아 있습니다. 서버는 누가 버튼을 눌렀는지 직접 볼 수 없습니다. 보장은 호스트의 화면 전용 공개 범위, MCP Apps 미지원 클라이언트에 등록하지 않기, 일회용 초안 번호가 함께 만듭니다.
 - 가상 데이터만 사용하며 실제 사내 시스템과 연동하지 않습니다. 실제 MES 데이터보다 단순합니다: 라인당 제품 1개, 생산 오더 없음, 설비 단위 기록 없음, 공휴일 없음.
 - 생산 수량은 시간대별 합계입니다. 검증기는 생산 가능 수량을 확인하지만 양품 하나하나의 생산 분까지 증명하지는 못합니다.
@@ -256,13 +266,13 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 
 **Phase 7 (다음 작업)**
 - Claude 데스크톱에서 폼 확인, Claude 도구 목록에 `confirm_issue`가 없는지 확인
-- 2분 데모 영상, README GIF, `docs/INSTALL.md`, `docs/EVALUATION.md`, 재생 페이지 영상 섹션
+- 데모 영상(약 6분), README GIF, 재생 페이지 영상 섹션
 
 **평가 후속**
 - `Phase/Phase5_Evaluation.md`의 후속 항목 10개 진행:
   - 평가 요청에 프롬프트 캐싱을 적용하고 채점기 값 검사를 고친 뒤 v1 기록 재채점
-  - 현재 v1을 두 도구 구성에서 `--repeat 3`으로 다시 실행해 기준점 확보
-  - 나머지 개선 후보를 개발용 시나리오로 반영하고 도구 설명을 다시 동결한 뒤 v2를 `--repeat 3`으로 실행, 시나리오별 통과 횟수(k/3) 비교
+  - 보존한 v1 서버 소스를 별도 체크아웃해 두 도구 구성에서 `--repeat 3`으로 기준점 확보. 현재 소스에는 이미 1~4번 반영
+  - 개발용 시나리오로 1~4번을 검증하고 나머지 개선 후보를 반영한 뒤 서버 버전을 식별하고, 변경한 도구 설명·정책을 다시 동결해 v2를 `--repeat 3`으로 실행. 시나리오별 통과 횟수(k/3) 비교
 - 모델 판단력 문제로 보이는 실패가 남을 때만 coarse 도구로 `claude-opus-5-5` 비교 (연기)
 
 ---

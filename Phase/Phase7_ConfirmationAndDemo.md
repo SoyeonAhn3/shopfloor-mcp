@@ -4,7 +4,7 @@
 
 **Status**: 🚧 In Progress
 **Prerequisites**: Phases 1–6 complete (development stage 1)
-**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Next: Claude Desktop check (stage C), then items 5–7.
+**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Item 6 done. Remaining: Claude Desktop check (stage C), item 5 (demo video by the user, GIFs) and item 7.
 
 ---
 
@@ -14,7 +14,7 @@ The confirm logic already exists in Phase 3. This phase adds only the entry poin
 
 - **Preview.** `preview_issue` points to a `ui://` form resource. The form shows the draft, lets the user edit it, and calls `confirm_issue`.
 - **Confirm tool.** `confirm_issue` is declared app-only, so it is absent from Claude's tool list. Clients without UI support never get it registered.
-- **Finishing work.** After the form: the 2-minute demo video, the README GIFs, the install guide and the evaluation report.
+- **Finishing work.** After the form: the demo video (about 6 minutes, made by the user), the README GIFs, the install guide and the evaluation report.
 
 ---
 
@@ -26,8 +26,8 @@ The confirm logic already exists in Phase 3. This phase adds only the entry poin
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ rendered in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
 | 3 | `confirm_issue` registration (app-only, UI-capable clients only) + `HumanContext` entry | ✅ checked in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
 | 4 | `tests/server/confirm.test.ts` (visibility, registration, form → confirm → audit) | ✅ 10 tests | general |
-| 5 | Demo video (2 min, plan §5 scenes 1–9) + README GIFs (2–3) | 🔲 | project-specific |
-| 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko update | 🔲 | general |
+| 5 | Demo video (about 6 min, made by the user) + README GIFs (2–3) | 🔲 | project-specific |
+| 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko update | ✅ (Desktop step in INSTALL unverified) | general |
 | 7 | Replay page: demo video section | 🔲 | project-specific |
 
 **Priority scope (2026-10-26):** items 1–4. Items 5–7 follow after them. Items 2–4 done 2026-10-27; item 1 waits for stage C.
@@ -101,7 +101,7 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 ### Implementation (item 2, 2026-10-26)
 | File | Content |
 |---|---|
-| `src/server/ui/issue-preview.html` | Self-contained View. The MCP Apps View protocol (spec 2026-01-26) is written inline over `postMessage` with the host window only: `ui/initialize` → `ui/notifications/initialized`, the draft from `ui/notifications/tool-result`, `ui/notifications/size-changed`, and replies to `ping` / `ui/resource-teardown`. Line, production date, evidence IDs and expiry are read-only. Title, severity and description are editable, and only changed fields are sent as `edits`. Only the 확정 click sends `tools/call confirm_issue {draftId, edits}`. Server text reaches the DOM only through `textContent` |
+| `src/server/ui/issue-preview.html` | Self-contained View. The MCP Apps View protocol (spec 2026-01-26) is written inline over `postMessage` with the host window only: `ui/initialize` → `ui/notifications/initialized`, the draft from `ui/notifications/tool-result`, `ui/notifications/size-changed`, and replies to `ping` / `ui/resource-teardown`. Line, production date, evidence IDs and expiry are read-only. The proposed severity is displayed separately; the person must select the final severity. `edits` always carries that severity plus changed title/description fields. Only the 확정 click sends `tools/call confirm_issue {draftId, edits}`. Server text reaches the DOM only through `textContent` |
 | `src/server/ui/issue-preview.ts` | `ISSUE_PREVIEW_URI`, `supportsMcpApps()` (declared `io.modelcontextprotocol/ui` MIME type), `registerIssuePreview()`: registers the resource disabled (`registerAppResource`, `text/html;profile=mcp-app`) and returns `enable()`, which turns it on and sets `preview_issue._meta.ui.resourceUri` plus the legacy `ui/resourceUri` key |
 | `src/server/app.ts` | `server.server.oninitialized` calls `enable()` only when `initialize` declared MCP Apps |
 | `src/server/format.ts`, `tools/register.ts`, `toolsets/*` | For MCP Apps clients only, the draft summary and `message` say the person confirms in the form (`FORM_DRAFT_MESSAGE`). `register()` returns the `RegisteredTool`; the tool sets return the `preview_issue` handle |
@@ -110,8 +110,8 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 
 ### Design Decisions (item 2)
 - **The View protocol is written inline instead of bundling the SDK `App` class.** `App` pulls the MCP client, core and zod into a bundle of about 400 KB and needs a bundler, which the project does not have. `review-sheet.html` already sets the inline-HTML pattern, and the message set is small and fixed by the stable spec. `ext-apps` is used on the server (`registerAppResource`, `getUiCapability`, MIME type and meta key constants).
-- **Text clients are unchanged.** The eval runner, Claude Code and the Inspector CLI declare no MCP Apps capability, so `tools/list`, `resources/list` and the draft text stay as in Phase 4. `descriptions.ts` is not changed, so `descriptionsHash` and the frozen eval conditions stay the same.
-- **Open:** the `preview_issue` description in `descriptions.ts` still says the text environment has no confirm screen, and MCP Apps clients see it too. Changing it changes `descriptionsHash`, so it is left for a user decision.
+- **Text clients keep the same tool/resource counts.** The eval runner, Claude Code and the Inspector CLI declare no MCP Apps capability, so the form and confirmation tool are absent. Phase 5 follow-ups #1/#2/#4 now change descriptions/policy and add a provisional-severity notice; the old evaluation freeze remains historical.
+- **Resolved by Phase 5 follow-up #4:** `preview_issue` now says clients without a form stop at a draft, while a person chooses severity in supported forms. This description change requires new dev runs and a new freeze.
 - **No `<form>` submit.** A sandboxed iframe without `allow-forms` can block form submission, so the button is `type="button"` with a click handler.
 - 2026-10-26: the Inspector 2.12.0 CLI (declares no MCP Apps) against the built server listed 4 resources and no `_meta` on `preview_issue`. The Inspector web client declares MCP Apps by default (`defaultAdvertised: true` in its bundle), so stage B uses the web UI.
 
@@ -119,10 +119,11 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 | File | Content |
 |---|---|
 | `src/core/service.ts` | `createCore()` returns `human.confirmDraft(draftId, edits)` next to `tools`. It builds a `HumanContext` with `createHumanContext()` on the core's own session, writer and clocks. `tools` still has no confirm operation |
-| `src/server/ui/issue-preview.ts` | `confirmSchema` (strict: `draftId`, optional `edits` limited to title, severity and description). `registerIssuePreview(server, preview, human)`: `enable()` runs once, turns on the form resource, links `preview_issue`, and registers `confirm_issue` with `registerAppTool`, `_meta.ui.visibility: ["app"]` and `readOnlyHint: false` |
+| `src/server/ui/issue-preview.ts` | `confirmSchema` (strict: required `draftId` and `edits.severity`, optional title/description edits). `registerIssuePreview(server, preview, human)`: `enable()` runs once, turns on the form resource, links `preview_issue`, and registers `confirm_issue` with `registerAppTool`, `_meta.ui.visibility: ["app"]` and `readOnlyHint: false` |
 | `src/server/app.ts` | Passes `core.human` only to `registerIssuePreview()` |
 | `src/server/format.ts` | Summary `이슈 등록됨 (I-…)` for a confirm result. `confirm_issue` results carry no `recovery` hint, since those hints address the model |
-| `tests/server/confirm.test.ts` | 10 tests: absent (`not found`) for text and other-MIME clients; app-only with a strict schema in coarse and fine; no confirm operation in `core.tools`; form-equivalent call → one issue with the edits, draft `confirmed`, one `human` success audit with `human_changes`; confirm without edits; double click, expiry, duplicate (the draft stays usable with a new title); edits to line, date or evidence and unknown keys rejected; another session's draft and a viewer denied and audited |
+| `tests/server/confirm.test.ts` | 10 tests: absent (`not found`) for text and other-MIME clients; app-only with a strict schema in coarse and fine; no confirm operation in `core.tools`; form-equivalent call → one issue with the edits, draft `confirmed`, one `human` success audit with `human_changes`; reject a missing severity choice and accept an explicit choice matching the proposal; double click, expiry, duplicate (the draft stays usable with a new title); edits to line, date or evidence and unknown keys rejected; another session's draft and a viewer denied and audited |
+| `tests/server/issue-preview-form.test.ts` | Executes the actual inline form script with a minimal DOM/host fixture: no confirmation request before severity selection; retaining or changing the proposal sends the chosen value |
 | `tests/server/issue-preview.test.ts` | Form clients list 5 / 11 tools with `confirm_issue` app-only; text clients list no confirm tool |
 
 ### Design Decisions (items 3–4)
@@ -130,7 +131,8 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 - **The entry accepts only what the form can edit.** Line, production date and evidence stay as Claude's draft cited them. Core re-checks evidence anyway, but the entry refuses these fields first.
 - **Schema rejections are not audited.** Invalid arguments are refused by the SDK's input validation before the handler, as for every other tool. Rejections by draft state (used, expired, duplicate, other session, role) reach core and are audited.
 - **A rejected confirm's audit row has no `draft_id`.** The failure result carries no draft ID, so the ID is only in `params`. This is existing core behaviour and stays unchanged; the tests read `params`.
-- **`descriptions.ts` is unchanged,** so `descriptionsHash` and the frozen eval conditions stay the same. The `confirm_issue` description lives in `issue-preview.ts`, because the model never sees it.
+- **Severity belongs to the person.** Phase 5 follow-up #4 marks the draft as `proposed`, shows the proposed severity separately, and requires `edits.severity` at the app-only entry. The trusted core human API retains its existing contract. No automatic issue-severity thresholds are defined. The `confirm_issue` description lives in `issue-preview.ts`, because the model never sees it.
+- Follow-up verification (2026-10-27): `npm run check` passes (221 tests / 22 files); `scenarios:check` passes. This checks the script and server contract locally; the updated severity interaction still needs an Inspector/Desktop visual check. Descriptions/policy changed under Phase 5 and require new dev runs and a new freeze.
 - Verification: `npm run check` passed with 21 test files and 216 tests.
 
 ---
@@ -143,7 +145,7 @@ Show it working (plan §6): a short video from Claude Desktop, GIFs for the READ
 ### Core Classes / Structure
 | Item | Content |
 |---|---|
-| Demo video | Plan §5 scenes 1–9: daily briefing → L4 low → shortfall breakdown → 09시대 pattern → preview form → severity edit + confirm → audit log |
+| Demo video | About 6 minutes, made by the user (changed from 2 minutes on 2026-10-27). Plan §5 scenes 1–9 stay the reference flow: daily briefing → L4 low → shortfall breakdown → 09시대 pattern → preview form → severity edit + confirm → audit log |
 | README GIFs | Question and answer with evidence IDs; preview form; audit log entry |
 | `docs/INSTALL.md` | Clone → `npm install` → `npm run generate` → build → Claude Desktop config → first question |
 | `docs/EVALUATION.md` | Run conditions, results per type, tool-set comparison, tuning before/after, limits |
@@ -152,6 +154,8 @@ Show it working (plan §6): a short video from Claude Desktop, GIFs for the READ
 ### Design Decisions
 - **Record the demo on a fresh DB copy**, so the audit log shows only the demo's calls.
 - **Every command in the docs is run on a clean clone before publishing.** No unverified commands.
+- **Item 6 (2026-10-27).** `docs/INSTALL.md` was checked on a clean clone of `ee85cde` (Windows 10, Node 24.14.0, npm 11.9.0, no Visual Studio). Plain `npm ci` failed: the lockfile carries no `gypfile: false` for `better-sqlite3`, so npm compiles it from source despite its bundled prebuilds. `npm ci --ignore-scripts` succeeded, and `generate`, `validate`, `check`, `db:copy`, `mcp:config` and `mcp:demo` all exited 0. The README Quick Start notes this. `docs/EVALUATION.md` reports the frozen v1 results and links Phase 5 for follow-ups.
+- **The user makes the demo video** (about 6 minutes, decided 2026-10-27). Claude does not produce it; Claude adds the link to the README and the replay page (item 7) once it exists. Plan §1 still says 2 minutes.
 
 ### Usage Examples (planned)
 ```
@@ -206,6 +210,9 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2026-10-26 | Stage B before item 3: form rendered in the Inspector web client; 확정 reached the server (`confirm_issue` not yet registered) |
 | 2026-10-26 | Progress summary, implemented form section, items 3–4 plan; README sync |
 | 2026-10-27 | Items 3–4 implemented: human entry `core.human`, app-only `confirm_issue` registered in `enable()`, 10 confirm tests (216 total); stage B re-run passed |
+| 2026-10-27 | Item 5: demo video changed to about 6 minutes, made by the user |
+| 2026-10-27 | Item 6: `docs/INSTALL.md` (clean-clone check, `npm ci --ignore-scripts` on Windows without build tools), `docs/EVALUATION.md`, README links |
+| 2026-10-27 | Phase 5 follow-up #4: display proposed severity separately, require an explicit final choice in the form and `edits.severity` in the app schema, retain the chosen value in the issue/audit. Add actual-script tests; `npm run check` passes (221 tests / 22 files). Updated visual interaction awaits Inspector/Desktop verification. |
 
 ---
 ---
@@ -216,7 +223,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 **상태**: 🚧 진행 중
 **선행 조건**: Phase 1~6 완료 (개발 1단계)
-**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 다음은 Claude 데스크톱 확인(C 단계), 그다음 5~7번이다.
+**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 6번도 완료했다. 남은 것은 Claude 데스크톱 확인(C 단계), 5번(사용자 제작 데모 영상, GIF), 7번이다.
 
 ---
 
@@ -226,7 +233,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 - **미리보기.** `preview_issue`가 `ui://` 폼 리소스를 가리킨다. 폼은 초안을 보여주고, 사용자가 고칠 수 있게 하고, `confirm_issue`를 부른다.
 - **확정 도구.** `confirm_issue`는 화면 전용으로 선언해서 Claude의 도구 목록에 없다. 화면을 지원하지 않는 클라이언트에는 아예 등록하지 않는다.
-- **마무리.** 폼 다음에는 2분 데모 영상, README GIF, 설치 안내, 평가 기록 문서를 만든다.
+- **마무리.** 폼 다음에는 데모 영상(약 6분, 사용자 제작), README GIF, 설치 안내, 평가 기록 문서를 만든다.
 
 ---
 
@@ -238,8 +245,8 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ Inspector 렌더링 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
 | 3 | `confirm_issue` 등록 (화면 전용, 화면 지원 클라이언트만) + `HumanContext` 입구 | ✅ Inspector 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
 | 4 | `tests/server/confirm.test.ts` (공개 범위, 등록 조건, 폼 → 확정 → 감사 기록) | ✅ 테스트 10개 | 범용 |
-| 5 | 데모 영상 (2분, 기획서 5장 장면 1~9) + README GIF (2~3개) | 🔲 | 전용 |
-| 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko 갱신 | 🔲 | 범용 |
+| 5 | 데모 영상 (약 6분, 사용자 제작) + README GIF (2~3개) | 🔲 | 전용 |
+| 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko 갱신 | ✅ (INSTALL의 데스크톱 단계는 확인 전) | 범용 |
 | 7 | 결과 재생 페이지: 데모 영상 칸 | 🔲 | 전용 |
 
 **우선 범위 (2026-10-26):** 1~4번. 5~7번은 그다음에 진행한다. 2~4번은 2026-10-27에 완료했고, 1번은 C 단계를 기다린다.
@@ -305,7 +312,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 ### 구현 내용 (2번, 2026-10-26)
 | 파일 | 내용 |
 |---|---|
-| `src/server/ui/issue-preview.html` | 혼자 동작하는 화면(View). MCP Apps 화면 프로토콜(스펙 2026-01-26)을 인라인으로 구현하고, 호스트 창과만 `postMessage`로 통신한다: `ui/initialize` → `ui/notifications/initialized`, `ui/notifications/tool-result`로 받은 초안 표시, `ui/notifications/size-changed`, `ping`·`ui/resource-teardown` 응답. 라인, 생산일, 근거 번호, 유효 시간은 읽기 전용이다. 제목, 심각도, 설명은 고칠 수 있고, 바뀐 항목만 `edits`로 보낸다. `tools/call confirm_issue {draftId, edits}`는 확정 버튼을 눌렀을 때만 보낸다. 서버 문자열은 `textContent`로만 화면에 넣는다 |
+| `src/server/ui/issue-preview.html` | 혼자 동작하는 화면(View). MCP Apps 화면 프로토콜(스펙 2026-01-26)을 인라인으로 구현하고, 호스트 창과만 `postMessage`로 통신한다: `ui/initialize` → `ui/notifications/initialized`, `ui/notifications/tool-result`로 받은 초안 표시, `ui/notifications/size-changed`, `ping`·`ui/resource-teardown` 응답. 라인, 생산일, 근거 번호, 유효 시간은 읽기 전용이다. 심각도 제안값은 따로 표시하고 사람이 최종 심각도를 선택해야 한다. `edits`에는 선택한 심각도와 변경한 제목·설명을 보낸다. `tools/call confirm_issue {draftId, edits}`는 확정 버튼을 눌렀을 때만 보낸다. 서버 문자열은 `textContent`로만 화면에 넣는다 |
 | `src/server/ui/issue-preview.ts` | `ISSUE_PREVIEW_URI`, `supportsMcpApps()`(`io.modelcontextprotocol/ui`의 MIME 타입 선언 확인), `registerIssuePreview()`: 리소스를 꺼진 상태로 등록하고(`registerAppResource`, `text/html;profile=mcp-app`) `enable()`을 돌려준다. `enable()`은 리소스를 켜고 `preview_issue._meta.ui.resourceUri`와 이전 형식 키 `ui/resourceUri`를 넣는다 |
 | `src/server/app.ts` | `server.server.oninitialized`에서 `initialize`가 MCP Apps를 선언한 경우에만 `enable()`을 부른다 |
 | `src/server/format.ts`, `tools/register.ts`, `toolsets/*` | MCP Apps 클라이언트에만 초안 요약과 `message`가 "사람이 폼에서 확정"으로 바뀐다(`FORM_DRAFT_MESSAGE`). `register()`는 `RegisteredTool`을 돌려주고, 도구 묶음은 `preview_issue` 핸들을 돌려준다 |
@@ -314,8 +321,8 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 
 ### 설계 결정 사항 (2번)
 - **SDK의 `App` 클래스를 번들링하지 않고 화면 프로토콜을 인라인으로 썼다.** `App`을 쓰면 MCP client, core, zod가 약 400KB 번들로 들어가고 번들러가 필요한데, 프로젝트에는 번들러가 없다. `review-sheet.html`이 이미 인라인 HTML 방식의 선례이고, 메시지 종류는 적고 안정 스펙으로 고정되어 있다. `ext-apps`는 서버 쪽에서 쓴다(`registerAppResource`, `getUiCapability`, MIME 타입과 메타 키 상수).
-- **텍스트 클라이언트는 그대로다.** 평가 실행기, Claude Code, Inspector CLI는 MCP Apps를 선언하지 않으므로 `tools/list`, `resources/list`, 초안 문구가 Phase 4와 같다. `descriptions.ts`는 바꾸지 않았으므로 `descriptionsHash`와 동결된 평가 조건도 그대로다.
-- **미결:** `descriptions.ts`의 `preview_issue` 설명은 여전히 "텍스트 환경에는 확정 화면이 없다"고 하며, MCP Apps 클라이언트에도 이 설명이 보인다. 바꾸면 `descriptionsHash`가 달라지므로 사용자 결정으로 남긴다.
+- **텍스트 클라이언트의 도구·리소스 수는 그대로다.** 평가 실행기, Claude Code, Inspector CLI는 MCP Apps를 선언하지 않으므로 폼과 확정 도구가 없다. Phase 5 후속 1·2·4번에서 설명·정책을 바꾸고 심각도의 잠정 안내를 추가했으며, 기존 평가 동결은 과거 버전의 기록으로 보존한다.
+- **Phase 5 후속 4번에서 해결:** `preview_issue`는 폼 미지원 환경에서는 초안까지만 제공하고, 지원 환경에서는 사람이 폼에서 심각도를 선택한다고 설명한다. 설명 변경에 따른 개발용 실행과 재동결이 필요하다.
 - **`<form>` 제출을 쓰지 않는다.** `allow-forms`가 없는 sandbox iframe에서는 폼 제출이 막힐 수 있으므로 `type="button"` 버튼의 클릭 처리로 확정한다.
 - 2026-10-26: MCP Apps를 선언하지 않는 Inspector 2.12.0 CLI로 빌드된 서버에 연결하니 리소스 4개, `preview_issue`의 `_meta` 없음으로 나왔다. Inspector 웹 화면은 MCP Apps를 기본으로 선언하므로(번들의 `defaultAdvertised: true`) B 단계는 웹 화면으로 한다.
 
@@ -323,10 +330,11 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 파일 | 내용 |
 |---|---|
 | `src/core/service.ts` | `createCore()`가 `tools` 옆에 `human.confirmDraft(draftId, edits)`를 돌려준다. core 자신의 세션, writer, clocks로 `createHumanContext()`를 써서 `HumanContext`를 만든다. `tools`에는 계속 확정 연산이 없다 |
-| `src/server/ui/issue-preview.ts` | `confirmSchema`(strict: `draftId`, 제목·심각도·설명만 받는 선택 `edits`). `registerIssuePreview(server, preview, human)`: `enable()`은 한 번만 실행되며 폼 리소스를 켜고, `preview_issue`를 연결하고, `registerAppTool`로 `confirm_issue`를 `_meta.ui.visibility: ["app"]`, `readOnlyHint: false`로 등록한다 |
+| `src/server/ui/issue-preview.ts` | `confirmSchema`(strict: `draftId`와 `edits.severity` 필수, 제목·설명 수정은 선택). `registerIssuePreview(server, preview, human)`: `enable()`은 한 번만 실행되며 폼 리소스를 켜고, `preview_issue`를 연결하고, `registerAppTool`로 `confirm_issue`를 `_meta.ui.visibility: ["app"]`, `readOnlyHint: false`로 등록한다 |
 | `src/server/app.ts` | `core.human`은 `registerIssuePreview()`에만 넘긴다 |
 | `src/server/format.ts` | 확정 결과 요약 `이슈 등록됨 (I-…)`. `recovery` 안내는 모델용이므로 `confirm_issue` 결과에는 붙이지 않는다 |
-| `tests/server/confirm.test.ts` | 테스트 10개: 텍스트·다른 MIME 클라이언트에는 없음(`not found`), coarse·fine에서 strict 스키마의 화면 전용 도구, `core.tools`에 확정 연산 없음, 폼과 같은 호출 → 수정 반영된 이슈 1건·초안 `confirmed`·`human_changes`가 담긴 `human` 성공 감사 기록 1건, 수정 없는 확정, 두 번 클릭·만료·중복(제목을 바꾸면 같은 초안으로 재확정 가능), 라인·생산일·근거 수정과 알 수 없는 칸 거절, 다른 세션 초안과 viewer 거절 및 감사 기록 |
+| `tests/server/confirm.test.ts` | 테스트 10개: 텍스트·다른 MIME 클라이언트에는 없음(`not found`), coarse·fine에서 strict 스키마의 화면 전용 도구, `core.tools`에 확정 연산 없음, 폼과 같은 호출 → 수정 반영된 이슈 1건·초안 `confirmed`·`human_changes`가 담긴 `human` 성공 감사 기록 1건, 심각도 선택 누락 거절과 제안값을 명시적으로 선택한 확정, 두 번 클릭·만료·중복(제목을 바꾸면 같은 초안으로 재확정 가능), 라인·생산일·근거 수정과 알 수 없는 칸 거절, 다른 세션 초안과 viewer 거절 및 감사 기록 |
+| `tests/server/issue-preview-form.test.ts` | 최소 DOM·호스트 테스트 환경에서 실제 인라인 스크립트 실행: 심각도 선택 전 확정 요청 없음, 제안 유지·변경 모두 선택값 전송 |
 | `tests/server/issue-preview.test.ts` | 폼 클라이언트는 도구 5개 / 11개이고 `confirm_issue`는 화면 전용, 텍스트 클라이언트에는 확정 도구 없음 |
 
 ### 설계 결정 사항 (3~4번)
@@ -334,7 +342,8 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **입구는 폼이 고칠 수 있는 항목만 받는다.** 라인, 생산일, 근거는 Claude 초안이 인용한 그대로 둔다. core도 근거를 다시 확인하지만, 입구에서 먼저 거절한다.
 - **스키마에서 거절된 요청은 감사 기록에 남지 않는다.** 다른 도구와 마찬가지로 잘못된 인자는 처리기 전에 SDK 입력 검증에서 거절된다. 초안 상태에 따른 거절(사용됨, 만료, 중복, 다른 세션, 역할)은 core까지 가서 기록된다.
 - **거절된 확정의 감사 기록에는 `draft_id`가 비어 있다.** 실패 결과에 초안 번호가 없어서 번호는 `params`에만 남는다. 기존 core 동작이며 바꾸지 않았고, 테스트는 `params`를 읽는다.
-- **`descriptions.ts`는 바꾸지 않았다.** 그래서 `descriptionsHash`와 동결된 평가 조건은 그대로다. `confirm_issue` 설명은 모델이 보지 않으므로 `issue-preview.ts`에 둔다.
+- **심각도는 사람이 결정한다.** Phase 5 후속 4번에 따라 초안을 `proposed`로 표시하고 제안값을 따로 보여주며 화면 전용 입구에서 `edits.severity`를 요구한다. 신뢰된 core 사람 API의 기존 규약은 유지한다. 이슈 심각도의 자동 산정 임계값은 정의하지 않는다. `confirm_issue` 설명은 모델이 보지 않으므로 `issue-preview.ts`에 둔다.
+- 후속 검증(2026-10-27): `npm run check` 통과(테스트 221개/파일 22개), `scenarios:check` 통과. 스크립트와 서버 규약을 로컬에서 확인했으며, 변경한 심각도 선택 동작의 Inspector/Desktop 화면 확인은 남아 있다. Phase 5 설명·정책 변경에 따른 개발용 실행·재동결이 필요하다.
 - 확인: `npm run check` 통과 (테스트 파일 21개, 테스트 216개).
 
 ---
@@ -350,6 +359,8 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 ### 설계 결정 사항
 - **데모는 새 DB 복사본으로 녹화한다.** 그래야 감사 기록에 데모의 호출만 남는다.
 - **문서의 모든 명령은 게시 전에 새로 받은 저장소에서 실행해 본다.** 확인하지 않은 명령은 쓰지 않는다.
+- **6번 (2026-10-27).** `docs/INSTALL.md`는 `ee85cde`를 새로 받은 저장소에서 확인했다(Windows 10, Node 24.14.0, npm 11.9.0, Visual Studio 없음). 그냥 `npm ci`는 실패했다. 잠금 파일에 `better-sqlite3`의 `gypfile: false`가 없어서, 미리 빌드된 파일이 있는데도 npm이 소스 컴파일을 시도한다. `npm ci --ignore-scripts`는 성공했고 `generate`, `validate`, `check`, `db:copy`, `mcp:config`, `mcp:demo`가 모두 종료 코드 0이었다. README 빠른 시작에 이 내용을 적었다. `docs/EVALUATION.md`는 동결된 v1 결과를 정리하고 후속 항목은 Phase 5로 연결한다.
+- **데모 영상은 사용자가 직접 만든다** (약 6분, 2026-10-27 결정). 2분에서 바꿨다. Claude는 영상을 만들지 않고, 영상이 나오면 README와 재생 페이지(7번)에 연결한다. 기획서 5장 장면 1~9는 참고 흐름으로 둔다. 기획서 1장에는 아직 2분으로 적혀 있다.
 
 ### 사용 예시 (예정)
 위 영어 섹션 코드와 동일.
@@ -399,3 +410,6 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 2026-10-26 | 3번 전 B 단계: Inspector 웹 화면에서 폼 렌더링 확인, 확정 요청이 서버까지 도달 (`confirm_issue`는 아직 미등록) |
 | 2026-10-26 | 진행 상황 요약, 구현된 폼 섹션 정리, 3~4번 계획 기록, README 동기화 |
 | 2026-10-27 | 3~4번 구현: 사람 입구 `core.human`, `enable()`에서 등록하는 화면 전용 `confirm_issue`, 확정 테스트 10개 (전체 216개), B 단계 재확인 통과 |
+| 2026-10-27 | 5번: 데모 영상을 약 6분, 사용자 제작으로 변경 |
+| 2026-10-27 | 6번: `docs/INSTALL.md`(새 클론 확인, 빌드 도구 없는 Windows의 `npm ci --ignore-scripts`), `docs/EVALUATION.md`, README 연결 |
+| 2026-10-27 | Phase 5 후속 4번: 심각도 제안을 따로 표시하고 폼의 최종 선택 및 화면 전용 스키마의 `edits.severity`를 필수로 했다. 선택값을 이슈·감사 기록에 반영한다. 실제 스크립트 테스트 추가, `npm run check` 통과(221개/파일 22개). 변경 동작의 Inspector/Desktop 화면 확인은 대기 중이다. |
