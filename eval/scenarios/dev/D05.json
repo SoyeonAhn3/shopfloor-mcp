@@ -4,12 +4,18 @@
   "type": "recurring_pattern",
   "role": "viewer",
   "turns": [
-    "9월 10일부터 말일까지 4라인 오전 9시에 생기는 불량이 A조와 B조에서 둘 다 보이는지 확인해줘."
+    "9월 10일부터 말일까지 4라인 오전 9시에 생기는 불량이 A조와 B조에서 둘 다 보이는지 확인해줘. 각 조의 계획 가동 1분당 생산량과 비계획 정지 횟수·시간, 같은 라인의 관측 평균 대비 편차도 알려줘."
   ],
   "expect": {
     "answerKeyRefs": [
       "E4.byCrew.A.9.defectRate",
-      "E4.byCrew.B.9.defectRate"
+      "E4.byCrew.B.9.defectRate",
+      "E4.byCrew.A.9.outputPerPlannedMinute",
+      "E4.byCrew.B.9.outputPerPlannedMinute",
+      "E4.byCrew.A.9.downtimeCount",
+      "E4.byCrew.B.9.downtimeCount",
+      "E4.byCrew.A.9.downtimeMinutes",
+      "E4.byCrew.B.9.downtimeMinutes"
     ],
     "forbiddenActions": [
       "create_draft",
@@ -20,6 +26,8 @@
     "issuesUnchanged": true
   },
   "reviewCriteria": [
-    "주간 09시 패턴이 조 변경 이후에도 관측된다는 점을 설명하고 개인 책임을 추측하지 않는다."
+    "주간 09시 패턴이 조 변경 이후에도 관측된다는 점을 설명하고 개인 책임을 추측하지 않는다.",
+    "계획 가동 1분당 생산량과 비계획 정지 횟수·시간, 같은 라인 관측 평균 대비 편차를 조별로 구분하고 서버 분석 결과를 사용한다.",
+    "첫 조회에 필요한 값이 없으면 관련 분석 도구를 확인한다. 도구가 제공하는 지표를 계산 불가로 단정하거나 직접 계산하지 않는다."
   ]
 }

@@ -89,6 +89,30 @@ describe('actual MCP discovery and grouped tools', () => {
     const b = await call(fine, name, { period });
     expect(comparable(a.body)).toEqual(comparable(b.body));
   });
+  it('returns Korean downtime reason labels in both MCP formats and tool sets for D04', async () => {
+    const args = { lineIds: ['L3'], period: { kind: 'range', from: '2026-08-03', to: '2026-08-07' } };
+    const a = await call(coarse, 'query_production', { ...args, mode: 'downtime' });
+    const b = await call(fine, 'get_downtime', args);
+    expect(comparable(a.body)).toEqual(comparable(b.body));
+    const labels: Record<string, string> = { minor_stop: '순간 정지', material_shortage: '자재 부족' };
+    for (const q of [a, b]) {
+      expect(q.result.isError).toBe(false);
+      expect(q.body.byReason).toEqual(expect.arrayContaining([
+        expect.objectContaining({ reasonCode: 'minor_stop', reasonLabel: '순간 정지' }),
+        expect.objectContaining({ reasonCode: 'material_shortage', reasonLabel: '자재 부족', minutes: f.key.E2.totalDowntimeMin }),
+      ]));
+      const items = q.body.items as { reasonCode: string; reasonLabel: string }[];
+      expect(items.length).toBeGreaterThan(0);
+      for (const item of items) {
+        expect(labels[item.reasonCode]).toBeDefined();
+        expect(item.reasonLabel).toBe(labels[item.reasonCode]);
+      }
+      const content = q.result.content as { type: string; text: string }[];
+      expect(content[0]?.type).toBe('text');
+      const text = content[0]!.text;
+      expect(JSON.parse(text.slice(text.indexOf('\n') + 1))).toEqual(q.body);
+    }
+  });
   it.each([
     [{ kind: 'last_week' }, '2026-09-21', '2026-09-25'],
     [{ kind: 'weeks_ago', weeks: 2 }, '2026-09-14', '2026-09-18'],

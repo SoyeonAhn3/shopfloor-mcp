@@ -20,13 +20,18 @@ describe('independent core calculations against the matching answer key', () => 
   it('matches E1 and E2 achievement and their exact selected downtime intervals', () => {
     const e1 = f.key.E1, e2 = f.key.E2;
     expect(getAchievement(f.db, day('L2', e1.productionDate)).total).toMatchObject({ target: e1.target, good: e1.good, achievement: e1.achievement });
-    expect(getDowntime(f.db, day('L2', e1.productionDate, { hours: [10,11,12,13] })).unplannedMinutes).toBe(e1.durationMin);
+    const breakdown = getDowntime(f.db, day('L2', e1.productionDate, { hours: [10,11,12,13] }));
+    expect(breakdown.unplannedMinutes).toBe(e1.durationMin);
+    expect(breakdown.byReason).toContainEqual({ reasonCode: 'breakdown', reasonLabel: '설비 고장', count: 1, minutes: e1.durationMin });
+    expect(breakdown.items[0]).toMatchObject({ reasonCode: 'breakdown', reasonLabel: '설비 고장' });
     const q = query(['L3'], { kind: 'range', from: e2.productionDates[0]!, to: e2.productionDates.at(-1)! });
     const production = getAchievement(f.db, q);
     expect(production.total.achievement).toBeCloseTo(e2.weekAverage, 12);
     for (const item of production.items) expect(item.achievement).toBeCloseTo(e2.dailyAchievement[item.productionDate]!, 12);
     const stops = getDowntime(f.db, q);
-    expect(stops.byReason.find(reason => reason.reasonCode === 'material_shortage')?.minutes).toBe(e2.totalDowntimeMin);
+    expect(stops.byReason.find(reason => reason.reasonCode === 'material_shortage'))
+      .toMatchObject({ reasonLabel: '자재 부족', minutes: e2.totalDowntimeMin });
+    expect(stops.byReason.find(reason => reason.reasonCode === 'minor_stop')).toMatchObject({ reasonLabel: '순간 정지' });
     expect(stops.unplannedMinutes).toBeGreaterThan(e2.totalDowntimeMin); // Normal minor stops also exist.
   });
   it('matches E3 overnight defects and the same-hour baseline excluding the event date', () => {
@@ -65,6 +70,11 @@ describe('independent core calculations against the matching answer key', () => 
     expect(planned.total).toMatchObject({ status: 'planned_stop', target: 0, achievement: null });
     expect(breakdownLoss(f.db, day('L5', f.key.E5.productionDate)).total?.shortfall).toBe(0);
     expect(detectAnomalies(f.db, day('L5', f.key.E5.productionDate)).items).toHaveLength(0);
+    const maintenance = getDowntime(f.db, day('L5', f.key.E5.productionDate));
+    expect(maintenance.unplannedMinutes).toBe(0);
+    expect(maintenance.byReason).toHaveLength(1);
+    expect(maintenance.byReason[0]).toMatchObject({ reasonCode: 'maintenance', reasonLabel: '설비 점검' });
+    for (const item of maintenance.items) expect(item).toMatchObject({ reasonCode: 'maintenance', reasonLabel: '설비 점검', planned: true });
     const q = day('L1', f.key.E6.productionDate), missing = getProduction(f.db, q);
     expect(missing.status).toBe('missing_data');
     expect(missing.total.coverage.missingSlots.map(s => s.slot)).toEqual(f.key.E6.missingSlots);

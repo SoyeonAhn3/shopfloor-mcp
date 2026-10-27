@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LABELS } from '../shared/codes.js';
 import { addMinutes, overlapMinutes, slotKey, toMinute } from '../shared/time.js';
 import type { ReadDb } from './db.js';
 import { wrapMemo } from './guards.js';
@@ -21,12 +22,12 @@ export function getDowntime(db: ReadDb, q: Query & { window?: TimeWindow | undef
     if (!minutes) return [];
     return [{ downtimeId: stop.downtime_id, lineId: stop.line_id, productionDate: stop.production_date,
       start: stop.start_at, end: stop.end_at, durationMinutes: stop.duration_min, selectedMinutes: minutes,
-      planned: !!stop.is_planned, reasonCode: stop.reason_code, reasonCategory: stop.reason_category,
+      planned: !!stop.is_planned, reasonCode: stop.reason_code, reasonLabel: LABELS[stop.reason_code], reasonCategory: stop.reason_category,
       slotMinutes, memo: wrapMemo(stop.memo) }];
   });
   const byReason = [...new Set(items.map(item => item.reasonCode))].map(reasonCode => {
     const events = items.filter(item => item.reasonCode === reasonCode);
-    return { reasonCode, count: events.length, minutes: events.reduce((sum, event) => sum + event.selectedMinutes, 0) };
+    return { reasonCode, reasonLabel: LABELS[reasonCode], count: events.length, minutes: events.reduce((sum, event) => sum + event.selectedMinutes, 0) };
   });
   return { ok: true as const, status: summary.status, period: q.period, lineIds: q.lineIds, coverage: summary.coverage,
     totalMinutes: items.reduce((sum, item) => sum + item.selectedMinutes, 0),

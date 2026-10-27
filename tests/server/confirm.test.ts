@@ -75,7 +75,8 @@ describe('confirm_issue visibility and registration', () => {
       // Without "model" the host leaves the tool out of the agent's list (ext-apps spec MUST).
       expect(confirm[0]?._meta?.ui).toEqual({ visibility: ['app'] });
       expect(confirm[0]?.annotations?.readOnlyHint).toBe(false);
-      expect(confirm[0]?.inputSchema).toMatchObject({ additionalProperties: false, required: ['draftId'] });
+      expect(confirm[0]?.inputSchema).toMatchObject({ additionalProperties: false, required: ['draftId', 'edits'],
+        properties: { edits: { required: ['severity'] } } });
     }
   });
 
@@ -110,16 +111,24 @@ describe('form → confirm_issue → issue and audit', () => {
     }
   });
 
-  it('confirms an unedited draft when the form sends no edits', async () => {
-    const draftId = await draft(form);
-    const { body } = await call(form, 'confirm_issue', { draftId });
+  it('requires an explicit human severity choice even when keeping the proposal', async () => {
+    const draftId = await draft(form), issues = count('issues'), audits = count('audit_log');
+    for (const args of [{ draftId }, { draftId, edits: {} }, { draftId, edits: { severity: '' } }]) {
+      expect((await call(form, 'confirm_issue', args)).result.isError).toBe(true);
+    }
+    expect(count('issues')).toBe(issues); expect(count('audit_log')).toBe(audits);
+    expect(storedDraft(draftId).status).toBe('pending');
+    const { body } = await call(form, 'confirm_issue', { draftId, edits: { severity: 'medium' } });
     expect(body.ok).toBe(true);
     expect(db.prepare('SELECT severity FROM issues WHERE draft_id = ?').get(draftId)).toEqual({ severity: 'medium' });
+    expect(JSON.parse(confirmAudits(draftId)[0]!.human_changes!)).toMatchObject({
+      before: { severity: 'medium' }, after: { severity: 'medium' },
+    });
   });
 
   it('rejects a double click without a second issue', async () => {
     const draftId = await draft(form);
-    expect((await call(form, 'confirm_issue', { draftId, edits: {} })).body.ok).toBe(true);
+    expect((await call(form, 'confirm_issue', { draftId, edits: { severity: 'medium' } })).body.ok).toBe(true);
     const issues = count('issues');
     const { result, body } = await call(form, 'confirm_issue', { draftId, edits: { severity: 'low' } });
     expect(result.isError).toBe(true);
@@ -132,7 +141,7 @@ describe('form → confirm_issue → issue and audit', () => {
   it('rejects an expired draft and marks it expired', async () => {
     const draftId = await draft(form), issues = count('issues');
     db.prepare('UPDATE issue_drafts SET expires_at = ? WHERE draft_id = ?').run('2000-01-01T00:00:00.000Z', draftId);
-    const { result, body } = await call(form, 'confirm_issue', { draftId });
+    const { result, body } = await call(form, 'confirm_issue', { draftId, edits: { severity: 'medium' } });
     expect(result.isError).toBe(true);
     expect(body).toMatchObject({ ok: false, reason: 'expired' });
     expect(body.message).toContain('새 초안');
@@ -141,19 +150,19 @@ describe('form → confirm_issue → issue and audit', () => {
 
   it('rejects a duplicate and leaves the draft usable with a new title', async () => {
     const first = await draft(form, '중복 확인'), second = await draft(form, '중복 확인');
-    expect((await call(form, 'confirm_issue', { draftId: first })).body.ok).toBe(true);
+    expect((await call(form, 'confirm_issue', { draftId: first, edits: { severity: 'medium' } })).body.ok).toBe(true);
     const issues = count('issues');
-    const duplicate = await call(form, 'confirm_issue', { draftId: second, edits: { title: ' 중복  확인!' } });
+    const duplicate = await call(form, 'confirm_issue', { draftId: second, edits: { title: ' 중복  확인!', severity: 'medium' } });
     expect(duplicate.result.isError).toBe(true);
     expect(duplicate.body).toMatchObject({ ok: false, reason: 'duplicate' });
     expect(count('issues')).toBe(issues); expect(storedDraft(second).status).toBe('pending');
-    expect((await call(form, 'confirm_issue', { draftId: second, edits: { title: '중복 확인 2차' } })).body.ok).toBe(true);
+    expect((await call(form, 'confirm_issue', { draftId: second, edits: { title: '중복 확인 2차', severity: 'medium' } })).body.ok).toBe(true);
   });
 
   it('accepts only the fields the form can edit', async () => {
     const draftId = await draft(form), issues = count('issues'), audits = count('audit_log');
-    for (const args of [{ draftId, edits: { lineId: 'L2' } }, { draftId, edits: { relatedDate: '2026-09-29' } },
-      { draftId, edits: { evidenceRefs: ['Q-0001'] } }, { draftId, actor: 'human' }, {}]) {
+    for (const args of [{ draftId, edits: { severity: 'medium', lineId: 'L2' } }, { draftId, edits: { severity: 'medium', relatedDate: '2026-09-29' } },
+      { draftId, edits: { severity: 'medium', evidenceRefs: ['Q-0001'] } }, { draftId, edits: { severity: 'medium' }, actor: 'human' }, {}]) {
       const result = await form.client.callTool({ name: 'confirm_issue', arguments: args });
       expect(result.isError).toBe(true);
     }
@@ -164,7 +173,7 @@ describe('form → confirm_issue → issue and audit', () => {
   it('rejects another session\'s draft and a viewer, each audited', async () => {
     const draftId = await draft(form), issues = count('issues');
     for (const peer of [formFine, formViewer]) {
-      const { result, body } = await call(peer, 'confirm_issue', { draftId });
+      const { result, body } = await call(peer, 'confirm_issue', { draftId, edits: { severity: 'medium' } });
       expect(result.isError).toBe(true);
       expect(body).toMatchObject({ ok: false, reason: 'denied' });
     }

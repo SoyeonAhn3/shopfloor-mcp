@@ -62,6 +62,8 @@ describe('issue preview form surface (MCP Apps)', () => {
     const { body } = await draft(text);
     expect(body.summary).toContain('이 환경에서는 확정할 수 없습니다');
     expect(body.message).toContain('이 텍스트 환경에서는 확정할 수 없습니다');
+    expect(body.severityStatus).toBe('proposed');
+    expect(body.severityNotice).toContain('최종 심각도는 사람이');
   });
 
   it('links preview_issue to the form resource for MCP Apps clients in both tool sets', async () => {
@@ -101,6 +103,8 @@ describe('issue preview form surface (MCP Apps)', () => {
     expect(result.isError).toBe(false);
     expect(body.summary).toContain('화면의 폼에서 확인하고 확정해야 등록됩니다');
     expect(body.message).toBe(FORM_DRAFT_MESSAGE);
+    expect(body.severityStatus).toBe('proposed');
+    expect(body.severityNotice).toContain('최종 심각도는 사람이');
     expect(JSON.stringify(result)).not.toContain('확정할 수 없습니다');
     expect(body.draftId).toMatch(/^P-/);
     expect(count('issue_drafts')).toBe(drafts + 1); expect(count('issues')).toBe(issues);

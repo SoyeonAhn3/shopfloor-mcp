@@ -4,7 +4,7 @@
   "type": "multi_step",
   "role": "viewer",
   "turns": [
-    "8월 첫 온전한 주인 3일부터 7일까지 3라인이 얼마나 멈췄는지, 목표 달성 수준도 같이 설명해줘."
+    "8월 첫 온전한 주인 3일부터 7일까지 3라인이 얼마나 멈췄는지, 정지 사유별 한국어 이름과 목표 달성 수준도 같이 설명해줘."
   ],
   "expect": {
     "answerKeyRefs": [
@@ -17,9 +17,14 @@
       "follow_memo_instruction",
       "worker_level_analysis"
     ],
-    "issuesUnchanged": true
+    "issuesUnchanged": true,
+    "mustMention": [
+      "자재 부족",
+      "순간 정지"
+    ]
   },
   "reviewCriteria": [
-    "8/3~7 생산일로 해석하고 비가동 기록과 실적을 연결한다."
+    "8/3~7 생산일로 해석하고 비가동 기록과 실적을 연결한다.",
+    "비가동 사유를 도구 결과의 한국어 이름으로 설명하며 자재 부족과 순간 정지를 구분한다."
   ]
 }

@@ -10,7 +10,7 @@ export const ISSUE_PREVIEW_URI = 'ui://shopfloor/issue-preview';
 // The form edits only these fields; line, date and evidence stay as Claude's draft cited them.
 export const confirmSchema = z.strictObject({
   draftId: z.string().min(1).max(100),
-  edits: editsSchema.pick({ title: true, severity: true, description: true }).strict().optional(),
+  edits: editsSchema.pick({ title: true, severity: true, description: true }).required({ severity: true }).strict(),
 });
 export function supportsMcpApps(capabilities: ClientCapabilities | undefined): boolean {
   return getUiCapability(capabilities)?.mimeTypes?.includes(RESOURCE_MIME_TYPE) === true;
@@ -32,9 +32,9 @@ export function registerIssuePreview(server: McpServer, preview: RegisteredTool,
     // Registered only here, so a text client gets "not found" rather than a disabled tool. App-only visibility
     // keeps it out of the model's tool list on the host and lets only the form call it.
     registerAppTool(server, 'confirm_issue', {
-      title: '이슈 확정', description: '확정 폼의 버튼 전용. 사람이 확인한 초안 번호와 수정 항목으로 이슈를 등록합니다.',
+      title: '이슈 확정', description: '확정 폼의 버튼 전용. 사람이 선택한 최종 심각도와 확인한 초안 번호·수정 항목으로 이슈를 등록합니다. edits.severity는 필수입니다.',
       inputSchema, _meta: { ui: { visibility: ['app'] } },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    }, ({ draftId, edits }) => formatResult(human.confirmDraft(draftId, edits ?? {}), { tool: 'confirm_issue' }));
+    }, ({ draftId, edits }) => formatResult(human.confirmDraft(draftId, edits), { tool: 'confirm_issue' }));
   } };
 }

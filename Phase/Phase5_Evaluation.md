@@ -2,7 +2,7 @@
 
 > Run the scenarios automatically against Claude through the MCP server, record every tool call and answer as JSON, grade against the answer key, and compare the two tool sets.
 
-**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. The improvement candidates below are recorded for follow-up and not applied. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
+**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27; live dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-ups #5–#10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
 **Prerequisites**: Phase 2 (frozen scenarios), Phase 4 (server with both tool sets) complete
 
 ---
@@ -236,16 +236,16 @@ All 60 eval records were reviewed by one person (`ㅇㅅㅇ`) in the review shee
 - **Coincidental matches:** the automatic value check also passed S12 fine's 21:00 per-minute output because "3개" fell within tolerance of 2.92. The review sheet's highlighting exposed both cases.
 - **Coarse vs fine:** differences in wording and level of detail come from per-response sampling and different tool contexts as well as tool design; N=1 cannot attribute style to the tool set.
 
-### Improvement candidates from human review (not applied)
+### Improvement candidates from human review (#1–#4 implemented; reevaluation pending)
 
-These came from frozen eval results, so they must not be applied to the current version. Each needs a matching development scenario (D-set) first, then description/server changes, a new description freeze and a rerun of both tool sets.
+These came from frozen eval results, so improvements belong to a new server version and must preserve the original evaluation records. Each needs a matching development scenario (D-set) first. Changes to descriptions or policy require a new freeze after dev runs; server-output changes also need a separately identified version and a rerun of both tool sets. The user authorized #3 on 2026-10-27 with `src/server/descriptions.ts` unchanged.
 
 | # | Source | Finding | Candidate change | Where it would change |
 |---|---|---|---|---|
-| 1 | S12 | No guidance that per-planned-minute output comes from the hourly-pattern analysis | List the returned measures (per-minute output, stop count/minutes, deviation) in the hourly-pattern descriptions | `src/server/descriptions.ts` |
-| 2 | S12 | The answer said the tool cannot compute the value | Policy: check other tools before saying a value is unavailable | `src/eval/config.ts` policy, server instructions |
-| 3 | S28 | Downtime results return only `reasonCode`, so Korean terms vary | Include the Korean label (for example `reasonLabel: "순간 정지"`) in tool output | `src/core` results / `src/server/format.ts` |
-| 4 | S29 | No rule for issue-draft severity | Decide whether to define a severity rule or leave severity to the human in the confirmation form | Decision in plan §10; implementation with the Phase 7 form |
+| 1 | S12 | No guidance that per-planned-minute output comes from the hourly-pattern analysis | Implemented: name the returned metrics and fields in both tool sets; D05 extended | `src/server/descriptions.ts` |
+| 2 | S12 | The answer said the tool cannot compute the value | Implemented: check relevant tools before declaring a metric unavailable; distinguish missing data from unsupported metrics | `src/eval/config.ts` policy and server instructions share `METRIC_LOOKUP_HELP` |
+| 3 | S28 | Downtime results returned only `reasonCode`, so Korean terms varied | Implemented 2026-10-27: include `reasonLabel` in detail rows and reason totals; model reevaluation pending | `src/core/records.ts`, typed reason codes in `src/core/metrics.ts`; descriptions and formatter unchanged |
+| 4 | S29 | No rule for issue-draft severity | Implemented: draft severity is a proposal; the person explicitly chooses the final severity, including when accepting the proposal | plan §10, `src/core/issues.ts`, descriptions, Phase 7 form and app-only confirmation schema |
 | 5 | S14 | Ambiguous wording ("문제") interpreted without asking | Ask for the criterion as well as the period when the question is ambiguous | descriptions / policy |
 | 6 | S17 | Unsupported follow-up advice ("설비 로그") | Standard wording for missing data: confirm with the floor, check for missing input | descriptions / glossary |
 | 7 | S11, S12 | Value check satisfied by unrelated numbers (dates, other quantities) | Exclude numbers inside dates and require nearby labels; new grader version, regrade separately | `src/eval/grade.ts` (new `graderHash`) |
@@ -253,13 +253,31 @@ These came from frozen eval results, so they must not be applied to the current 
 | 9 | External feedback (cost) | No prompt caching: every model call resends the tool definitions at full price (about 27k input tokens per question coarse, 54k fine) | Add `cache_control` to eval requests so tool definitions and the system prompt are read from cache; token and cost figures are then not directly comparable with the N=1 baseline | `src/eval/claude.ts` |
 | 10 | Run plan | N=1 cannot separate an improvement from run-to-run variation | Run v1 and v2 with `--repeat 3` on both tool sets and compare per-scenario pass counts (k/3); see the follow-up run plan below | eval runs |
 
+### Follow-up #3 implementation (2026-10-27)
+
+- `getDowntime()` reuses `LABELS` from `src/shared/codes.ts` to return `reasonLabel` alongside `reasonCode` in both `items` and `byReason`. For example, `minor_stop` returns `reasonLabel: "순간 정지"`. Counts, minutes, categories, planned-stop flags and reference-data memos retain their existing behavior.
+- `Stop.reason_code` uses the existing `ReasonCode` type, matching the database's allowed codes. Both coarse `query_production(mode=downtime)` and fine `get_downtime` use the same core result. The existing formatter includes the labels in text JSON and `structuredContent` without changes.
+- D04 now requests Korean reason names for L3 on August 3–7 and checks the distinction between material shortage and minor stops. This is a new dev-scenario revision; existing dev records are preserved and no new model run has been performed.
+- Validation: `npm run check` passes (217 tests / 21 files, typecheck and build); `npm run scenarios:check` passes (30 eval + 10 dev). Core assertions cover breakdown, material shortage, minor stops and planned maintenance. The D04 MCP regression checks both tool sets and both response formats.
+- The #3-only implementation preserved `src/server/descriptions.ts` and its SHA-256: `e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2`. The subsequent #1/#2/#4 changes below change descriptions/policy. Frozen S scenarios, lock/freeze files, existing runs and human reviews remain unchanged.
+- The current freeze/comparison checks do not identify server implementation changes. An unchanged description hash therefore does not establish identical evaluation conditions. Record and check the server source version/hash before the next v1/v2 comparison; that runner enhancement is still pending. The published v1 accuracy does not measure this change.
+
+### Follow-ups #1, #2 and #4 implementation (2026-10-27)
+
+- **#1 — metric discovery:** both `analyze_production(mode=hourly_pattern)` and `analyze_hourly_pattern` now describe average output, `outputPerPlannedMinute`, unplanned `downtimeCount`/`downtimeMinutes`, and `deviationFromLineAveragePct`. Calculations are unchanged. Existing D05 dev records already call the hourly analysis; the expanded D05 now explicitly requests the returned measures and checks them against the independent key.
+- **#2 — availability checks:** `METRIC_LOOKUP_HELP` is shared by server instructions and `EVAL_POLICY`. When an initial lookup lacks a requested metric, the model is instructed to check relevant tool descriptions and use the supporting analysis before declaring it unavailable. Missing observations and zero denominators remain distinct from unsupported metrics; the model must not invent arithmetic. Stub-model tests exercise production → hourly analysis on both tool sets; they do not establish live model behavior.
+- **#4 — human severity choice:** the existing D09 dev answer treated an anomaly threshold as the draft's severity rule. Plan §10 now keeps issue severity under human control. Draft responses expose `severityStatus: "proposed"` and a notice; `preview_issue` describes severity as provisional and distinguishes text-only clients from form clients. The form displays the proposed value separately and requires a final selection. The app-only `confirm_issue` schema requires `edits.severity`, even when it matches the proposal; title/description edits stay optional. The registered value and before/after audit use the person's selection. No automatic issue-severity thresholds were introduced.
+- **Versioning:** descriptions and policy hashes change. The previous freeze is deliberately preserved; its gate rejects the new conditions until both full D01–D10 dev runs complete and a new freeze is created with a reason. No paid API run, human review, regrading or refreeze was performed. D05/D09 are revised dev scenarios; S01–S30 and historical records are preserved.
+- **Validation:** `npm run check` passes (221 tests / 22 files, typecheck and build); `npm run scenarios:check` passes. Form-script tests verify required selection and submission of both retained/changed proposals; MCP tests verify refusal before writes and persistence/audit of the chosen value. Inspector/Desktop visual acceptance of the updated form is pending.
+- **Current hashes:** descriptions `a2b8d59578b6d4db86f7f2f4e8cd2fa21aa0137b304cc3bb7a36053201e347ce`; policy `d4b1114fe36770fa39790e6d7c21c153b985ecaa20ddcb6c4dff54ac0ed1cf2e`. A read-only check of the built runner confirmed that the preserved v1 freeze rejects these conditions.
+
 ### Follow-up run plan (`--repeat 3`, not run)
 
 Purpose: tell whether v2 answers better than v1, rather than a one-off difference. A v2-only repeat would still be compared against the N=1 v1 baseline, so v1 is repeated too.
 
 1. Apply #9 (caching) and #7 (grader), then regrade the existing v1 records with the new grader so both versions use one grader.
-2. Run the current frozen v1 with `--repeat 3` on both tool sets as a new baseline, before any description changes. Existing records stay untouched.
-3. Apply #1–#6 through dev scenarios (D-set) only, then re-freeze descriptions.
+2. Use a separate checkout of the server source from the v1 evaluation, with only the shared caching/grader changes, for the `--repeat 3` baseline on both tool sets. The current source already includes #3 and must not be labeled v1 merely because its description hash matches. Identify server versions in the comparison; existing records stay untouched.
+3. Complete #1–#6 through dev scenarios (D-set) only (#1–#4 are implemented; live dev verification is pending), then re-freeze changed descriptions/policy.
 4. Run v2 with `--repeat 3` on both tool sets.
 5. Human review, then compare v1 and v2 by per-scenario pass count (0/3–3/3) first and mean accuracy with its range second.
 
@@ -338,6 +356,8 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 | 2026-10-26 | Apply all 60 human reviews (plus six reviewer-instructed edits by Claude); final accuracy coarse 93.3%, fine 86.7%. Record review findings and eight improvement candidates (not applied). |
 | 2026-10-26 | Defer the Opus 5.5 comparison until the Sonnet v2 evaluation; record reasons, revisit condition and runner checks. |
 | 2026-10-26 | Move the Opus comparison to plan §8 (post-development) and mark Phase 5 complete; synchronize both READMEs. |
+| 2026-10-27 | Implement follow-up #3 using shared Korean labels in downtime details/totals, extend D04 and regression coverage, and preserve descriptions and frozen evaluation artifacts. Synchronize both READMEs and distinguish the changed server from v1; model reevaluation remains pending. No dev-log skill is installed; this change log records the work. |
+| 2026-10-27 | Implement #1/#2/#4: metric descriptions and shared availability policy, revised D05/D09, provisional draft severity and required human severity selection in the form and app schema. Descriptions/policy change; the old freeze and evaluation records remain intact. Live dev/eval and refreeze pending. No dev-log skill is installed; this change log records the work. |
 
 ---
 ---
@@ -346,7 +366,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 
 > MCP 서버를 연결한 Claude로 시나리오를 자동 실행하고, 도구 호출과 답변을 모두 JSON으로 남기고, 정답표와 대조해 채점하고, 두 도구 세트를 비교한다.
 
-**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 아래 개선 후보는 후속 작업으로 기록했으며 아직 반영하지 않았다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
+**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했다. 실제 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 5~10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
 **선행 조건**: Phase 2(시나리오 동결), Phase 4(두 도구 세트를 갖춘 서버) 완료
 
 ---
@@ -524,16 +544,16 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **우연 일치:** 자동 값 검사는 S12 fine의 21시 1분당 생산량도 통과시켰다. "3개"가 정답 2.92의 허용 오차 안에 들었기 때문이다. 검수 화면의 노란 표시로 두 사례를 찾았다.
 - **coarse와 fine의 차이:** 표현과 상세 수준의 차이는 도구 설계뿐 아니라 응답마다의 무작위 생성과 서로 다른 도구 문맥에서도 생긴다. N=1로는 어투 차이를 도구 구성 탓으로 볼 수 없다.
 
-### 사람 검수에서 나온 개선 후보 (미적용)
+### 사람 검수에서 나온 개선 후보 (1~4번 구현, 재평가 대기)
 
-동결된 평가 결과에서 나온 항목이므로 현재 버전에는 적용하지 않는다. 각 항목은 먼저 대응하는 개발용 시나리오(D 세트)를 만들고, 설명·서버를 수정한 뒤, 도구 설명을 새로 동결하고 두 도구 구성을 다시 실행해야 한다.
+동결된 평가 결과에서 나온 항목이므로 기존 평가 기록을 보존하고 새 서버 버전으로 개선한다. 각 항목은 먼저 대응하는 개발용 시나리오(D 세트)를 준비한다. 설명이나 정책을 바꾸면 개발용 실행 후 다시 동결하며, 서버 응답을 바꾸는 경우도 버전을 구분하고 두 도구 구성을 다시 실행해야 한다. 사용자는 2026-10-27에 `src/server/descriptions.ts`를 유지하는 조건으로 3번 구현을 승인했다.
 
 | # | 출처 | 발견 | 개선 방향 | 변경 위치 |
 |---|---|---|---|---|
-| 1 | S12 | 1분당 생산량이 시간대 패턴 분석에서 나온다는 안내 없음 | 시간대 패턴 분석 설명에 반환 항목(1분당 생산량, 정지 횟수·시간, 편차) 명시 | `src/server/descriptions.ts` |
-| 2 | S12 | 도구가 계산하지 못한다고 잘못 답함 | 값이 없다고 말하기 전에 다른 도구를 확인하도록 정책 보완 | `src/eval/config.ts` 정책, 서버 안내문 |
-| 3 | S28 | 비가동 결과가 `reasonCode`만 반환해 한국어 용어가 제각각 | 도구 결과에 한국어 이름(예: `reasonLabel: "순간 정지"`) 포함 | `src/core` 결과 / `src/server/format.ts` |
-| 4 | S29 | 이슈 초안 심각도 규칙 없음 | 심각도 규칙을 정할지, 확정 화면에서 사람이 정하게 할지 결정 | 기획서 10장 결정 사항, 구현은 Phase 7 확정 화면 |
+| 1 | S12 | 1분당 생산량이 시간대 패턴 분석에서 나온다는 안내 없음 | 구현: 두 도구 구성의 설명에 지표와 반환 필드 명시, D05 확장 | `src/server/descriptions.ts` |
+| 2 | S12 | 도구가 계산하지 못한다고 잘못 답함 | 구현: 관련 도구를 확인한 뒤 제공 불가 여부를 판단하고, 미입력과 미지원 구분 | `src/eval/config.ts` 정책·서버 안내문이 `METRIC_LOOKUP_HELP` 공유 |
+| 3 | S28 | 비가동 결과가 `reasonCode`만 반환해 한국어 용어가 제각각이었음 | 2026-10-27 구현: 상세 기록과 사유별 집계에 `reasonLabel` 포함. 모델 재평가 대기 | `src/core/records.ts`, `src/core/metrics.ts` 사유 코드 타입. 설명·formatter 변경 없음 |
+| 4 | S29 | 이슈 초안 심각도 규칙 없음 | 구현: 초안 심각도는 잠정 제안. 제안을 그대로 채택해도 사람이 최종 심각도를 명시적으로 선택 | 기획서 10장, `src/core/issues.ts`, 도구 설명, Phase 7 폼·화면 전용 확정 스키마 |
 | 5 | S14 | 모호한 표현("문제")을 묻지 않고 해석 | 모호한 질문은 기간과 함께 기준도 되묻기 | 도구 설명 / 정책 |
 | 6 | S17 | 근거 없는 후속 조치 제안("설비 로그") | 미입력 시 권할 조치를 정해진 표현으로 안내(현장 확인, 입력 누락 점검) | 도구 설명 / 용어집 |
 | 7 | S11, S12 | 날짜·다른 수량의 숫자로 값 검사 통과 | 날짜 속 숫자 제외, 주변 항목명 확인. 새 채점기 버전으로 별도 재채점 | `src/eval/grade.ts` (새 `graderHash`) |
@@ -541,13 +561,31 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 9 | 외부 피드백(비용) | 프롬프트 캐싱 미사용: 모델 호출마다 도구 정의를 정가로 다시 보냄(질문당 입력 coarse 약 2.7만, fine 약 5.4만 토큰) | 평가 요청에 `cache_control`을 넣어 도구 정의·시스템 프롬프트를 캐시로 읽음. 이후 토큰·비용 수치는 기존 N=1 결과와 바로 비교하지 않음 | `src/eval/claude.ts` |
 | 10 | 실행 계획 | N=1로는 개선 효과와 실행 간 변동을 구분하지 못함 | v1과 v2를 두 도구 구성에서 `--repeat 3`으로 실행하고 시나리오별 통과 횟수(k/3)를 비교. 아래 후속 실행 계획 참고 | 평가 실행 |
 
+### 후속 3번 구현 (2026-10-27)
+
+- `getDowntime()`이 `src/shared/codes.ts`의 `LABELS`를 재사용해 `items`와 `byReason` 모두에 `reasonCode`와 함께 `reasonLabel`을 반환한다. 예를 들어 `minor_stop`에는 `reasonLabel: "순간 정지"`가 붙는다. 횟수·시간·분류·계획 정지 여부와 참고 데이터 메모의 기존 동작은 유지한다.
+- `Stop.reason_code`는 DB에서 허용하는 코드에 맞춰 기존 `ReasonCode` 타입을 사용한다. coarse의 `query_production(mode=downtime)`과 fine의 `get_downtime`은 같은 core 결과를 사용한다. 기존 formatter를 수정하지 않고도 텍스트 JSON과 `structuredContent` 모두에 이름이 전달된다.
+- D04는 8월 3~7일 L3의 사유별 한국어 이름을 요청하고 자재 부족과 순간 정지의 구분을 확인하도록 확장했다. 개발용 시나리오의 새 리비전이며, 기존 개발용 기록은 보존하고 새 모델 실행은 하지 않았다.
+- 검증: `npm run check` 통과(테스트 217개/파일 21개, 타입 검사·빌드), `npm run scenarios:check` 통과(평가용 30개·개발용 10개). Core에서는 설비 고장·자재 부족·순간 정지·계획 점검을 검증했고, D04 MCP 회귀 테스트에서는 두 도구 구성과 두 응답 형식을 확인했다.
+- 3번만 구현했을 때는 `src/server/descriptions.ts`와 SHA-256을 유지했다: `e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2`. 이후 아래의 1·2·4번 작업에서 설명·정책을 변경했다. 동결된 S 시나리오, 잠금·동결 파일, 기존 실행과 사람 검수 기록은 유지한다.
+- 현재 동결·비교 검사는 서버 구현 변경을 식별하지 않는다. 설명 해시가 같다는 이유만으로 평가 조건이 같다고 볼 수 없다. 다음 v1/v2 비교 전에 서버 소스 버전·해시를 기록하고 검사해야 하며, 이 실행기 보완은 아직 미구현이다. 공개된 v1 정답률은 이번 변경의 효과를 측정한 결과가 아니다.
+
+### 후속 1·2·4번 구현 (2026-10-27)
+
+- **1번 — 지표 안내:** `analyze_production(mode=hourly_pattern)`과 `analyze_hourly_pattern` 모두 평균 생산량, `outputPerPlannedMinute`, 비계획 `downtimeCount`/`downtimeMinutes`, `deviationFromLineAveragePct`를 설명한다. 계산은 그대로다. 기존 D05 개발 기록에서도 시간대 분석을 호출했으며, 확장한 D05는 이 반환 지표를 명시적으로 요청하고 독립 정답표와 대조한다.
+- **2번 — 제공 가능 여부 확인:** 서버 안내문과 `EVAL_POLICY`가 `METRIC_LOOKUP_HELP`를 공유한다. 첫 조회에 요청한 지표가 없으면 관련 도구 설명을 확인하고 해당 분석을 사용한 뒤 제공 가능 여부를 답하도록 했다. 미입력·분모 0과 미지원은 구분하며 직접 계산은 금지한다. 가짜 모델 테스트로 두 도구 구성의 실적 조회 → 시간대 분석을 검증하며, 이는 실제 모델 행동의 검증 결과는 아니다.
+- **4번 — 사람의 심각도 선택:** 기존 D09 개발 답변은 이상 판단 기준을 초안 심각도의 산정 규칙으로 사용했다. 기획서 10장에 따라 이슈 심각도는 사람이 결정한다. 초안은 `severityStatus: "proposed"`와 안내를 반환하고, `preview_issue` 설명에는 잠정 제안 및 텍스트·폼 환경의 차이를 명시했다. 폼은 제안값을 따로 보여주고 최종 선택을 요구한다. 화면 전용 `confirm_issue`는 제안을 그대로 채택해도 `edits.severity`가 필수이며, 제목·설명 수정은 선택이다. 선택한 값으로 등록하고 감사 기록에 전후 값을 남긴다. 이슈 심각도의 자동 산정 임계값은 추가하지 않았다.
+- **버전 구분:** 설명·정책 해시가 바뀐다. 이전 동결 기록은 보존하며, 새 조건은 두 구성의 전체 D01~D10 실행과 사유를 남긴 재동결 전까지 기존 동결 검사에서 거절된다. 유료 API 실행·사람 검수·재채점·재동결은 하지 않았다. D05·D09는 개발용 새 리비전이며 S01~S30과 기존 기록은 보존한다.
+- **검증:** `npm run check` 통과(테스트 221개/파일 22개, 타입 검사·빌드), `npm run scenarios:check` 통과. 폼 스크립트에서 선택 필수와 제안 유지·변경값 전송을 확인했고, MCP 테스트에서는 선택 누락 시 쓰기 전 거절 및 선택값의 저장·감사 기록을 검증했다. 변경한 폼의 Inspector/Desktop 화면 확인은 대기 중이다.
+- **현재 해시:** 설명 `a2b8d59578b6d4db86f7f2f4e8cd2fa21aa0137b304cc3bb7a36053201e347ce`, 정책 `d4b1114fe36770fa39790e6d7c21c153b985ecaa20ddcb6c4dff54ac0ed1cf2e`. 빌드된 실행기의 읽기 전용 검사로 기존 v1 동결이 이 조건을 거절하는 것을 확인했다.
+
 ### 후속 실행 계획 (`--repeat 3`, 미실행)
 
 목적: v2가 v1보다 실제로 더 나은지, 한 번의 우연인지 구분한다. v2만 반복하면 비교 대상이 여전히 N=1인 v1이므로 v1도 반복한다.
 
 1. 9번(캐싱)과 7번(채점기)을 먼저 반영하고, 기존 v1 기록을 새 채점기로 재채점해 두 버전의 채점 기준을 맞춘다.
-2. 도구 설명을 바꾸기 전에 현재 동결된 v1을 두 도구 구성에서 `--repeat 3`으로 실행해 새 기준점으로 삼는다. 기존 기록은 건드리지 않는다.
-3. 1~6번은 개발용 시나리오(D 세트)로만 반영하고 도구 설명을 다시 동결한다.
+2. v1 평가 당시 서버 소스를 별도 체크아웃하고 공통 캐싱·채점기 변경만 적용해, 두 도구 구성에서 `--repeat 3`으로 기준점을 확보한다. 현재 소스에는 이미 3번이 반영되어 있으므로 설명 해시가 같아도 v1로 표시하지 않는다. 비교 시 서버 버전을 식별하고 기존 기록은 보존한다.
+3. 1~6번을 개발용 시나리오(D 세트)로만 완료한다(1~4번 구현, 실제 개발용 모델 검증 대기). 변경한 도구 설명·정책은 다시 동결한다.
 4. v2를 두 도구 구성에서 `--repeat 3`으로 실행한다.
 5. 사람 검수 후 v1과 v2를 시나리오별 통과 횟수(0/3~3/3)로 먼저 비교하고, 평균 정답률과 범위는 그다음에 본다.
 
@@ -626,3 +664,5 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 2026-10-26 | 사람 검수 60건 반영(검수자 지시에 따른 Claude 수정 6건 포함). 최종 정답률 coarse 93.3%, fine 86.7%. 검수 결과와 개선 후보 8개 기록(미적용). |
 | 2026-10-26 | Opus 5.5 비교를 Sonnet v2 평가 이후로 연기. 이유, 재검토 조건, 실행기 확인 사항을 기록했다. |
 | 2026-10-26 | Opus 비교를 기획서 8장(개발 완료 후 별도 진행)으로 옮기고 Phase 5를 완료로 표시. 영문·국문 README 동기화. |
+| 2026-10-27 | 후속 3번 구현: 비가동 상세·집계에 공통 한국어 이름을 추가하고 D04와 회귀 검증을 확장했다. 설명 파일과 동결된 평가 자료를 보존하고 영문·국문 README를 동기화했으며, 변경 서버를 v1과 구분하도록 기록했다. 모델 재평가는 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |
+| 2026-10-27 | 1·2·4번 구현: 지표 설명과 공통 제공 가능 여부 정책, D05·D09 보완, 초안 심각도의 잠정 표시 및 폼·화면 전용 스키마의 사람 선택 필수화. 설명·정책을 변경하되 이전 동결·평가 기록은 보존했다. 실제 개발용·평가용 실행과 재동결은 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |

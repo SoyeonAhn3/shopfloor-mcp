@@ -1,4 +1,4 @@
-import type { LineId } from '../shared/codes.js';
+import type { LineId, ReasonCode } from '../shared/codes.js';
 import { addMinutes, overlapMinutes, slotKey } from '../shared/time.js';
 import type { ReadDb } from './db.js';
 import type { Resolved } from './period.js';
@@ -61,7 +61,7 @@ export function getAchievement(db: ReadDb, q: Query) { return getProduction(db, 
 
 export interface Stop {
   downtime_id: string; line_id: LineId; production_date: string; shift: 'day' | 'night'; crew: 'A' | 'B';
-  start_at: string; end_at: string; duration_min: number; reason_code: string; reason_category: string; is_planned: number; memo: string;
+  start_at: string; end_at: string; duration_min: number; reason_code: ReasonCode; reason_category: string; is_planned: number; memo: string;
 }
 export function readStops(db: ReadDb, q: Query): Stop[] {
   return db.all<Stop>(`SELECT downtime_id,line_id,production_date,shift,crew,start_at,end_at,duration_min,reason_code,reason_category,is_planned,memo

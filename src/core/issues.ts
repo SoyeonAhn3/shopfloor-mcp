@@ -57,7 +57,9 @@ export function createDraft(ctx: ToolContext, raw: unknown) {
       related_date: input.relatedDate, title: input.title, severity: input.severity, description: input.description,
       evidence_refs: JSON.stringify(input.evidenceRefs), status: 'pending', created_at: now.toISOString(),
       expires_at: expiresAt, used_at: null, issue_id: null });
-    return { ok: true as const, draftId, expiresAt, draft: input, message: '초안 생성됨. 아직 등록되지 않았으며 이 텍스트 환경에서는 확정할 수 없습니다.' };
+    return { ok: true as const, draftId, expiresAt, draft: input, severityStatus: 'proposed' as const,
+      severityNotice: '심각도는 잠정 제안입니다. 최종 심각도는 사람이 확정 화면에서 선택합니다.',
+      message: '초안 생성됨. 아직 등록되지 않았으며 이 텍스트 환경에서는 확정할 수 없습니다.' };
   }, { atomic: true });
 }
 export function confirmDraft(ctx: HumanContext, draftId: string, edits: DraftEdits = {}) {
