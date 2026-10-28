@@ -4,7 +4,7 @@
 
 **Status**: 🚧 In Progress
 **Prerequisites**: Phases 1–6 complete (development stage 1)
-**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Item 6 done. Remaining: Claude Desktop check (stage C), item 5 (demo video by the user, GIFs) and item 7.
+**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Item 6 done. A separate 90-second promo video is embedded in the README (2026-10-27). Remaining: Claude Desktop check (stage C), item 5 (demo video by the user, GIFs) and item 7.
 
 ---
 
@@ -150,12 +150,14 @@ Show it working (plan §6): a short video from Claude Desktop, GIFs for the READ
 | `docs/INSTALL.md` | Clone → `npm install` → `npm run generate` → build → Claude Desktop config → first question |
 | `docs/EVALUATION.md` | Run conditions, results per type, tool-set comparison, tuning before/after, limits |
 | README / README_ko | Quick Start with verified commands, status, links to the replay page and video |
+| Promo video (extra) | 90 s silent teaser, 1920×1080 · 30 fps, English on screen with Korean subtitles. Chapters WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS. Remotion 4.0.515 project in `promo-video/` (`npm run build` → `out/shopfloor-promo.mp4`), plan in `promo-video/PLAN.md` |
 
 ### Design Decisions
 - **Record the demo on a fresh DB copy**, so the audit log shows only the demo's calls.
 - **Every command in the docs is run on a clean clone before publishing.** No unverified commands.
 - **Item 6 (2026-10-27).** `docs/INSTALL.md` was checked on a clean clone of `ee85cde` (Windows 10, Node 24.14.0, npm 11.9.0, no Visual Studio). Plain `npm ci` failed: the lockfile carries no `gypfile: false` for `better-sqlite3`, so npm compiles it from source despite its bundled prebuilds. `npm ci --ignore-scripts` succeeded, and `generate`, `validate`, `check`, `db:copy`, `mcp:config` and `mcp:demo` all exited 0. The README Quick Start notes this. `docs/EVALUATION.md` reports the frozen v1 results and links Phase 5 for follow-ups.
 - **The user makes the demo video** (about 6 minutes, decided 2026-10-27). Claude does not produce it; Claude adds the link to the README and the replay page (item 7) once it exists. Plan §1 still says 2 minutes.
+- **The promo video does not replace item 5** (2026-10-27). It is a 90-second teaser for portfolio reviewers; the Claude Desktop walkthrough is still the user's ~6 minute demo. Its DEMO chapter uses two real records with source labels: eval run S10 (answer) and MCP Inspector stage B (form and audit log), not Claude Desktop. The README embeds it above Overview through a GitHub user-attachments URL (c208756), so no video file is kept in the repo. `promo-video/` is not tracked in Git yet.
 
 ### Usage Examples (planned)
 ```
@@ -213,6 +215,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2026-10-27 | Item 5: demo video changed to about 6 minutes, made by the user |
 | 2026-10-27 | Item 6: `docs/INSTALL.md` (clean-clone check, `npm ci --ignore-scripts` on Windows without build tools), `docs/EVALUATION.md`, README links |
 | 2026-10-27 | Phase 5 follow-up #4: display proposed severity separately, require an explicit final choice in the form and `edits.severity` in the app schema, retain the chosen value in the issue/audit. Add actual-script tests; `npm run check` passes (221 tests / 22 files). Updated visual interaction awaits Inspector/Desktop verification. |
+| 2026-10-28 | Promo video recorded: 90 s Remotion teaser (`promo-video/`) embedded in the README (c208756); separate from item 5, which stays open |
 
 ---
 ---
@@ -223,7 +226,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 **상태**: 🚧 진행 중
 **선행 조건**: Phase 1~6 완료 (개발 1단계)
-**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 6번도 완료했다. 남은 것은 Claude 데스크톱 확인(C 단계), 5번(사용자 제작 데모 영상, GIF), 7번이다.
+**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 6번도 완료했다. 별도의 90초 홍보 영상을 README에 넣었다(2026-10-27). 남은 것은 Claude 데스크톱 확인(C 단계), 5번(사용자 제작 데모 영상, GIF), 7번이다.
 
 ---
 
@@ -361,6 +364,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **문서의 모든 명령은 게시 전에 새로 받은 저장소에서 실행해 본다.** 확인하지 않은 명령은 쓰지 않는다.
 - **6번 (2026-10-27).** `docs/INSTALL.md`는 `ee85cde`를 새로 받은 저장소에서 확인했다(Windows 10, Node 24.14.0, npm 11.9.0, Visual Studio 없음). 그냥 `npm ci`는 실패했다. 잠금 파일에 `better-sqlite3`의 `gypfile: false`가 없어서, 미리 빌드된 파일이 있는데도 npm이 소스 컴파일을 시도한다. `npm ci --ignore-scripts`는 성공했고 `generate`, `validate`, `check`, `db:copy`, `mcp:config`, `mcp:demo`가 모두 종료 코드 0이었다. README 빠른 시작에 이 내용을 적었다. `docs/EVALUATION.md`는 동결된 v1 결과를 정리하고 후속 항목은 Phase 5로 연결한다.
 - **데모 영상은 사용자가 직접 만든다** (약 6분, 2026-10-27 결정). 2분에서 바꿨다. Claude는 영상을 만들지 않고, 영상이 나오면 README와 재생 페이지(7번)에 연결한다. 기획서 5장 장면 1~9는 참고 흐름으로 둔다. 기획서 1장에는 아직 2분으로 적혀 있다.
+- **홍보 영상은 5번을 대신하지 않는다** (2026-10-27). 포트폴리오 검토자를 위한 90초 무음 티저다(1920×1080 · 30fps, 화면은 영어, 한국어 자막). 장 구성은 WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS다. Claude 데스크톱 시연은 여전히 사용자가 만드는 약 6분 데모다. DEMO 장은 출처 표시를 단 실제 기록 두 개를 쓴다. 평가 실행 S10(답변)과 MCP Inspector B 단계(폼, 감사 기록)이며 Claude 데스크톱 화면이 아니다. 소스는 `promo-video/`의 Remotion 4.0.515 프로젝트(`npm run build` → `out/shopfloor-promo.mp4`), 계획은 `promo-video/PLAN.md`다. README는 Overview 위에 GitHub user-attachments 주소로 영상을 넣었고(c208756), 저장소에는 영상 파일을 두지 않는다. `promo-video/`는 아직 Git에 올리지 않았다.
 
 ### 사용 예시 (예정)
 위 영어 섹션 코드와 동일.
@@ -413,3 +417,4 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 2026-10-27 | 5번: 데모 영상을 약 6분, 사용자 제작으로 변경 |
 | 2026-10-27 | 6번: `docs/INSTALL.md`(새 클론 확인, 빌드 도구 없는 Windows의 `npm ci --ignore-scripts`), `docs/EVALUATION.md`, README 연결 |
 | 2026-10-27 | Phase 5 후속 4번: 심각도 제안을 따로 표시하고 폼의 최종 선택 및 화면 전용 스키마의 `edits.severity`를 필수로 했다. 선택값을 이슈·감사 기록에 반영한다. 실제 스크립트 테스트 추가, `npm run check` 통과(221개/파일 22개). 변경 동작의 Inspector/Desktop 화면 확인은 대기 중이다. |
+| 2026-10-28 | 홍보 영상 기록: 90초 Remotion 티저(`promo-video/`)를 README에 넣음(c208756). 5번과 별개이며 5번은 그대로 남음 |
