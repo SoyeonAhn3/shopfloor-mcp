@@ -2,7 +2,7 @@
 
 > Run the scenarios automatically against Claude through the MCP server, record every tool call and answer as JSON, grade against the answer key, and compare the two tool sets.
 
-**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27; live dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-ups #5–#10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
+**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27 and passed a live dev check on D04/D05/D09 and an Inspector form check on 2026-10-28; full D01–D10 dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-ups #5–#10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
 **Prerequisites**: Phase 2 (frozen scenarios), Phase 4 (server with both tool sets) complete
 
 ---
@@ -268,8 +268,40 @@ These came from frozen eval results, so improvements belong to a new server vers
 - **#2 — availability checks:** `METRIC_LOOKUP_HELP` is shared by server instructions and `EVAL_POLICY`. When an initial lookup lacks a requested metric, the model is instructed to check relevant tool descriptions and use the supporting analysis before declaring it unavailable. Missing observations and zero denominators remain distinct from unsupported metrics; the model must not invent arithmetic. Stub-model tests exercise production → hourly analysis on both tool sets; they do not establish live model behavior.
 - **#4 — human severity choice:** the existing D09 dev answer treated an anomaly threshold as the draft's severity rule. Plan §10 now keeps issue severity under human control. Draft responses expose `severityStatus: "proposed"` and a notice; `preview_issue` describes severity as provisional and distinguishes text-only clients from form clients. The form displays the proposed value separately and requires a final selection. The app-only `confirm_issue` schema requires `edits.severity`, even when it matches the proposal; title/description edits stay optional. The registered value and before/after audit use the person's selection. No automatic issue-severity thresholds were introduced.
 - **Versioning:** descriptions and policy hashes change. The previous freeze is deliberately preserved; its gate rejects the new conditions until both full D01–D10 dev runs complete and a new freeze is created with a reason. No paid API run, human review, regrading or refreeze was performed. D05/D09 are revised dev scenarios; S01–S30 and historical records are preserved.
-- **Validation:** `npm run check` passes (221 tests / 22 files, typecheck and build); `npm run scenarios:check` passes. Form-script tests verify required selection and submission of both retained/changed proposals; MCP tests verify refusal before writes and persistence/audit of the chosen value. Inspector/Desktop visual acceptance of the updated form is pending.
+- **Validation:** `npm run check` passes (221 tests / 22 files, typecheck and build); `npm run scenarios:check` passes. Form-script tests verify required selection and submission of both retained/changed proposals; MCP tests verify refusal before writes and persistence/audit of the chosen value. The Inspector check passed on 2026-10-28 (below); the Desktop check stays with Phase 7 stage C.
 - **Current hashes:** descriptions `a2b8d59578b6d4db86f7f2f4e8cd2fa21aa0137b304cc3bb7a36053201e347ce`; policy `d4b1114fe36770fa39790e6d7c21c153b985ecaa20ddcb6c4dff54ac0ed1cf2e`. A read-only check of the built runner confirmed that the preserved v1 freeze rejects these conditions.
+
+### Follow-up #1–#4 verification (2026-10-28)
+
+**Severity form in MCP Inspector (stage B, user-run).** Runtime copy `data/run/phase5-severity.db`, operator `demo`, evidence Q-0001 (L4, 2026-09-24). The user reported every checklist item as passing, and the runtime copy matches:
+
+| Check | Result |
+|---|---|
+| Initial state | 최종 심각도 starts empty (심각도를 선택하세요); the proposal appears separately as 초안의 잠정 제안 |
+| Confirm without a selection | Refused in the form with 최종 심각도를 선택하세요.; nothing written |
+| Keep the proposal (보통) | `심각도 확인: 보통 · 수정 없음`; issue registered as medium; audit Q-0004 `actor: human`, `edits: {"severity":"medium"}` |
+| Change the proposal (보통 → 높음, new draft and title) | `수정: 심각도 보통 → 높음`; issue registered as high; audit Q-0006 `human_changes` medium → high |
+
+A `preview_issue` call whose `relatedDate` (2026-09-04) did not match the evidence date was rejected with the generic `invalid_input` text about line and date formats (Q-0002). The specific core reason (조회 근거의 라인과 생산일을 확인해 주세요) is lost because `failure()` in `src/core/audit.ts` maps every `RangeError` to that text. Changing it alters server output and therefore evaluation conditions; it is pending a user decision.
+
+**Live dev run of D04/D05/D09 (user-run, `claude-sonnet-5-5`, N=1).** Descriptions `a2b8d595…` and policy `d4b1114f…` match the current hashes above.
+
+| Run | Cost |
+|---|---:|
+| `20261028T021416928Z-dev-coarse-812bc49e` | $0.42 |
+| `20261028T021616974Z-dev-fine-574f27fa` | $0.71 |
+
+No automatic check failed in the six records; the remaining checks are `needs_review` semantic checks. No issue changed; D09 created one draft per tool set. Claude compared the answers against each scenario's criteria; no human review was recorded and no review files were created.
+
+| Scenario | Follow-up | 2026-10-23 dev run | 2026-10-28 (coarse / fine) |
+|---|---|---|---|
+| D04 | #3 | coarse answer showed the raw code `minor_stop` | Both use the server's `reasonLabel`: 자재 부족 10 stops / 900 min, 순간 정지 5 / 18 min |
+| D05 | #1, #2 | earlier revision did not request these metrics | Both call the hourly analysis (`analyze_production` mode=hourly_pattern / `analyze_hourly_pattern`) and report per-crew output per planned minute, unplanned stop count/minutes and deviation from the line average; no own arithmetic and no "cannot compute" claim |
+| D09 | #4 | both set severity high, using the anomaly threshold (stop > 30 min) as a severity rule | Both propose medium, call it provisional, say a person chooses the final severity, and do not claim registration |
+
+- **Values:** D05 matches the independent answer key `E4.byCrew` at 09:00 (7 / 8 slots, 2.107 / 2.085 per planned minute, 14 stops 84 min / 16 stops 96 min, defect rate 9.04% / 8.79%). The deviation (+0.55% / −0.48%) is not in the answer key and matches the server result.
+- **Observations, not failures:** fine D05 compared 15-day totals with anomaly thresholds that apply per hourly slot (`resources/anomaly-criteria.md`); coarse labelled the same comparison as reference only. This is a candidate for later D-set work. D09 proposing medium for a 180-minute breakdown is expected, because no automatic severity rule exists. D09 answers tell the user to register on the confirmation screen, which the runner does not have; this fits D09's criteria.
+- **Scope:** a three-scenario N=1 dev check. It is not a v2 evaluation and does not change the freeze, frozen scenarios or earlier records. A new freeze still needs full D01–D10 runs on both tool sets.
 
 ### Follow-up run plan (`--repeat 3`, not run)
 
@@ -277,7 +309,7 @@ Purpose: tell whether v2 answers better than v1, rather than a one-off differenc
 
 1. Apply #9 (caching) and #7 (grader), then regrade the existing v1 records with the new grader so both versions use one grader.
 2. Use a separate checkout of the server source from the v1 evaluation, with only the shared caching/grader changes, for the `--repeat 3` baseline on both tool sets. The current source already includes #3 and must not be labeled v1 merely because its description hash matches. Identify server versions in the comparison; existing records stay untouched.
-3. Complete #1–#6 through dev scenarios (D-set) only (#1–#4 are implemented; live dev verification is pending), then re-freeze changed descriptions/policy.
+3. Complete #1–#6 through dev scenarios (D-set) only (#1–#4 are implemented and passed the D04/D05/D09 dev check on 2026-10-28), then re-freeze changed descriptions/policy.
 4. Run v2 with `--repeat 3` on both tool sets.
 5. Human review, then compare v1 and v2 by per-scenario pass count (0/3–3/3) first and mean accuracy with its range second.
 
@@ -358,6 +390,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 | 2026-10-26 | Move the Opus comparison to plan §8 (post-development) and mark Phase 5 complete; synchronize both READMEs. |
 | 2026-10-27 | Implement follow-up #3 using shared Korean labels in downtime details/totals, extend D04 and regression coverage, and preserve descriptions and frozen evaluation artifacts. Synchronize both READMEs and distinguish the changed server from v1; model reevaluation remains pending. No dev-log skill is installed; this change log records the work. |
 | 2026-10-27 | Implement #1/#2/#4: metric descriptions and shared availability policy, revised D05/D09, provisional draft severity and required human severity selection in the form and app schema. Descriptions/policy change; the old freeze and evaluation records remain intact. Live dev/eval and refreeze pending. No dev-log skill is installed; this change log records the work. |
+| 2026-10-28 | Record the #1–#4 verification: the Inspector severity-form check passed, and user-run live dev runs of D04/D05/D09 on both tool sets showed no automatic failures and met each scenario's criteria (Claude comparison, no human review recorded). Record the generic error text that hides evidence mismatches. Freeze, frozen scenarios and earlier records unchanged. |
 
 ---
 ---
@@ -366,7 +399,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 
 > MCP 서버를 연결한 Claude로 시나리오를 자동 실행하고, 도구 호출과 답변을 모두 JSON으로 남기고, 정답표와 대조해 채점하고, 두 도구 세트를 비교한다.
 
-**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했다. 실제 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 5~10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
+**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했고, 2026-10-28에 D04·D05·D09 실제 개발용 실행과 Inspector 폼 확인을 통과했다. D01~D10 전체 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 5~10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
 **선행 조건**: Phase 2(시나리오 동결), Phase 4(두 도구 세트를 갖춘 서버) 완료
 
 ---
@@ -576,8 +609,40 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **2번 — 제공 가능 여부 확인:** 서버 안내문과 `EVAL_POLICY`가 `METRIC_LOOKUP_HELP`를 공유한다. 첫 조회에 요청한 지표가 없으면 관련 도구 설명을 확인하고 해당 분석을 사용한 뒤 제공 가능 여부를 답하도록 했다. 미입력·분모 0과 미지원은 구분하며 직접 계산은 금지한다. 가짜 모델 테스트로 두 도구 구성의 실적 조회 → 시간대 분석을 검증하며, 이는 실제 모델 행동의 검증 결과는 아니다.
 - **4번 — 사람의 심각도 선택:** 기존 D09 개발 답변은 이상 판단 기준을 초안 심각도의 산정 규칙으로 사용했다. 기획서 10장에 따라 이슈 심각도는 사람이 결정한다. 초안은 `severityStatus: "proposed"`와 안내를 반환하고, `preview_issue` 설명에는 잠정 제안 및 텍스트·폼 환경의 차이를 명시했다. 폼은 제안값을 따로 보여주고 최종 선택을 요구한다. 화면 전용 `confirm_issue`는 제안을 그대로 채택해도 `edits.severity`가 필수이며, 제목·설명 수정은 선택이다. 선택한 값으로 등록하고 감사 기록에 전후 값을 남긴다. 이슈 심각도의 자동 산정 임계값은 추가하지 않았다.
 - **버전 구분:** 설명·정책 해시가 바뀐다. 이전 동결 기록은 보존하며, 새 조건은 두 구성의 전체 D01~D10 실행과 사유를 남긴 재동결 전까지 기존 동결 검사에서 거절된다. 유료 API 실행·사람 검수·재채점·재동결은 하지 않았다. D05·D09는 개발용 새 리비전이며 S01~S30과 기존 기록은 보존한다.
-- **검증:** `npm run check` 통과(테스트 221개/파일 22개, 타입 검사·빌드), `npm run scenarios:check` 통과. 폼 스크립트에서 선택 필수와 제안 유지·변경값 전송을 확인했고, MCP 테스트에서는 선택 누락 시 쓰기 전 거절 및 선택값의 저장·감사 기록을 검증했다. 변경한 폼의 Inspector/Desktop 화면 확인은 대기 중이다.
+- **검증:** `npm run check` 통과(테스트 221개/파일 22개, 타입 검사·빌드), `npm run scenarios:check` 통과. 폼 스크립트에서 선택 필수와 제안 유지·변경값 전송을 확인했고, MCP 테스트에서는 선택 누락 시 쓰기 전 거절 및 선택값의 저장·감사 기록을 검증했다. Inspector 확인은 2026-10-28에 통과했다(아래). 데스크톱 확인은 Phase 7 C 단계에 남아 있다.
 - **현재 해시:** 설명 `a2b8d59578b6d4db86f7f2f4e8cd2fa21aa0137b304cc3bb7a36053201e347ce`, 정책 `d4b1114fe36770fa39790e6d7c21c153b985ecaa20ddcb6c4dff54ac0ed1cf2e`. 빌드된 실행기의 읽기 전용 검사로 기존 v1 동결이 이 조건을 거절하는 것을 확인했다.
+
+### 후속 1~4번 검증 (2026-10-28)
+
+**MCP Inspector 심각도 폼 확인 (B 단계, 사용자 실행).** 실행용 복사본 `data/run/phase5-severity.db`, operator `demo`, 근거 Q-0001(L4, 2026-09-24). 사용자가 확인 항목 전부 통과를 보고했고, 실행용 복사본의 기록도 같다.
+
+| 확인 | 결과 |
+|---|---|
+| 처음 상태 | 최종 심각도가 빈 값(심각도를 선택하세요)으로 시작하고, 제안값은 "초안의 잠정 제안"으로 따로 보인다 |
+| 선택 없이 확정 | 폼에서 "최종 심각도를 선택하세요."로 거절, 기록 없음 |
+| 제안 유지(보통) | `심각도 확인: 보통 · 수정 없음`, 이슈가 medium으로 등록, 감사 기록 Q-0004 `actor: human`, `edits: {"severity":"medium"}` |
+| 제안 변경(보통 → 높음, 새 초안·새 제목) | `수정: 심각도 보통 → 높음`, 이슈가 high로 등록, 감사 기록 Q-0006 `human_changes` medium → high |
+
+`relatedDate`(2026-09-04)가 근거 날짜와 다른 `preview_issue` 호출은 라인·날짜 형식을 확인하라는 일반 `invalid_input` 안내로 거절됐다(Q-0002). core의 구체적인 이유("조회 근거의 라인과 생산일을 확인해 주세요")는 `src/core/audit.ts`의 `failure()`가 모든 `RangeError`를 이 안내로 바꾸면서 사라진다. 바꾸면 서버 응답이 달라져 평가 조건에 영향을 주므로 사용자 결정을 기다린다.
+
+**D04·D05·D09 실제 개발용 실행 (사용자 실행, `claude-sonnet-5-5`, N=1).** 설명 `a2b8d595…`, 정책 `d4b1114f…`가 위의 현재 해시와 같다.
+
+| 실행 | 비용 |
+|---|---:|
+| `20261028T021416928Z-dev-coarse-812bc49e` | $0.42 |
+| `20261028T021616974Z-dev-fine-574f27fa` | $0.71 |
+
+기록 6건 모두 자동 검사 실패가 없고, 나머지는 `needs_review` 의미 검사다. 이슈 변경은 없고, D09는 도구 구성마다 초안을 1건 만들었다. 답변은 Claude가 시나리오 기준과 대조했다. 사람 검수 기록은 남기지 않았고 검수 파일도 만들지 않았다.
+
+| 시나리오 | 후속 | 2026-10-23 개발용 실행 | 2026-10-28 (coarse / fine) |
+|---|---|---|---|
+| D04 | 3번 | coarse 답변에 `minor_stop` 코드가 그대로 나옴 | 둘 다 서버의 `reasonLabel` 사용: 자재 부족 10회 900분, 순간 정지 5회 18분 |
+| D05 | 1·2번 | 이 지표를 요청하지 않던 이전 리비전 | 둘 다 시간대 분석(`analyze_production` mode=hourly_pattern / `analyze_hourly_pattern`)을 호출하고 조별 계획 가동 1분당 생산량, 비계획 정지 횟수·시간, 라인 평균 대비 편차를 제시. 직접 계산이나 "계산 불가" 단정 없음 |
+| D09 | 4번 | 둘 다 이상 판단 기준(정지 30분 초과)을 심각도 규칙으로 써서 high로 정함 | 둘 다 medium을 잠정 제안으로 표시하고, 최종 심각도는 사람이 고른다고 설명. 등록 완료 주장 없음 |
+
+- **값 대조:** D05는 독립 정답표 `E4.byCrew`의 09시 값과 같다(관측 7 / 8슬롯, 계획 가동 1분당 2.107 / 2.085, 정지 14회 84분 / 16회 96분, 불량률 9.04% / 8.79%). 평균 대비 편차(+0.55% / −0.48%)는 정답표에 없어서 서버 결과와 대조했고 같았다.
+- **실패는 아닌 관찰:** fine D05는 시간대 관측 구간마다 적용하는 이상 기준(`resources/anomaly-criteria.md`)을 15일 합산값과 비교했다. coarse는 같은 비교를 참고용이라고 밝혔다. 나중에 D 세트로 다룰 개선 후보다. D09가 180분 고장에 medium을 제안한 것은 심각도 자동 규칙이 없으므로 예상한 결과다. D09 답변은 확정 화면에서 등록하라고 안내하지만 실행기에는 화면이 없다. D09 기준에는 맞는다.
+- **범위:** 시나리오 3개, N=1 개발용 확인이다. v2 평가가 아니며 동결, 동결된 시나리오, 기존 기록은 바뀌지 않았다. 새 동결에는 여전히 두 도구 구성의 D01~D10 전체 실행이 필요하다.
 
 ### 후속 실행 계획 (`--repeat 3`, 미실행)
 
@@ -585,7 +650,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 
 1. 9번(캐싱)과 7번(채점기)을 먼저 반영하고, 기존 v1 기록을 새 채점기로 재채점해 두 버전의 채점 기준을 맞춘다.
 2. v1 평가 당시 서버 소스를 별도 체크아웃하고 공통 캐싱·채점기 변경만 적용해, 두 도구 구성에서 `--repeat 3`으로 기준점을 확보한다. 현재 소스에는 이미 3번이 반영되어 있으므로 설명 해시가 같아도 v1로 표시하지 않는다. 비교 시 서버 버전을 식별하고 기존 기록은 보존한다.
-3. 1~6번을 개발용 시나리오(D 세트)로만 완료한다(1~4번 구현, 실제 개발용 모델 검증 대기). 변경한 도구 설명·정책은 다시 동결한다.
+3. 1~6번을 개발용 시나리오(D 세트)로만 완료한다(1~4번 구현, 2026-10-28 D04·D05·D09 개발용 확인 통과). 변경한 도구 설명·정책은 다시 동결한다.
 4. v2를 두 도구 구성에서 `--repeat 3`으로 실행한다.
 5. 사람 검수 후 v1과 v2를 시나리오별 통과 횟수(0/3~3/3)로 먼저 비교하고, 평균 정답률과 범위는 그다음에 본다.
 
@@ -666,3 +731,4 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 2026-10-26 | Opus 비교를 기획서 8장(개발 완료 후 별도 진행)으로 옮기고 Phase 5를 완료로 표시. 영문·국문 README 동기화. |
 | 2026-10-27 | 후속 3번 구현: 비가동 상세·집계에 공통 한국어 이름을 추가하고 D04와 회귀 검증을 확장했다. 설명 파일과 동결된 평가 자료를 보존하고 영문·국문 README를 동기화했으며, 변경 서버를 v1과 구분하도록 기록했다. 모델 재평가는 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |
 | 2026-10-27 | 1·2·4번 구현: 지표 설명과 공통 제공 가능 여부 정책, D05·D09 보완, 초안 심각도의 잠정 표시 및 폼·화면 전용 스키마의 사람 선택 필수화. 설명·정책을 변경하되 이전 동결·평가 기록은 보존했다. 실제 개발용·평가용 실행과 재동결은 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |
+| 2026-10-28 | 1~4번 검증 기록: Inspector 심각도 폼 확인 통과, 사용자가 실행한 D04·D05·D09 두 도구 구성 개발용 실행에서 자동 검사 실패 없이 시나리오 기준 충족(Claude 대조, 사람 검수 기록 없음). 근거 불일치를 가리는 일반 오류 안내를 기록. 동결, 동결된 시나리오, 기존 기록은 그대로다. |

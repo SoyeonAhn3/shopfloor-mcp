@@ -4,7 +4,7 @@
 
 **Status**: 🚧 In Progress
 **Prerequisites**: Phases 1–6 complete (development stage 1)
-**Progress (2026-10-28)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Items 5–7 done; the README video closes 5 and 7. Remaining: Claude Desktop check (stage C).
+**Progress (2026-10-28)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. The required final severity choice (Phase 5 follow-up #4) passed stage B on 2026-10-28. Items 5–7 done; the README video closes 5 and 7. Remaining: Claude Desktop check (stage C).
 
 ---
 
@@ -60,6 +60,7 @@ Adopt MCP Apps for the confirm entry. The decision is conditional because Claude
 - 2026-10-26, stage B before item 3: the Inspector 2.12.0 web client declared MCP Apps and rendered the form after `preview_issue` (draft `P-4733…`, L4, 2026-09-24, evidence Q-0002). Clicking 확정 sent `tools/call confirm_issue` through the host to the server, which answered `Tool confirm_issue not found`, as expected before item 3. No issue was inserted, the draft stayed `pending`, and the audit log holds Q-0001–Q-0003 only. So the Inspector declares the UI capability by default and relays the View's `tools/call`.
 - 2026-10-27, stage B after items 3–4 (runtime copy `data/run/phase7-stageb-confirm.db`, operator `demo`): in the form, severity 보통 → 높음 showed `수정: 심각도 보통 → 높음`, and 확정 registered one issue with severity high. The audit holds `edits: {"severity":"high"}` and `human_changes` before/after under `actor: human` (Q-0014). A duplicate title was rejected in the form with the server's message, and the draft stayed `pending` (Q-0007). Calling `confirm_issue` again with a used draft ID was rejected as `already_used` (Q-0012). The four test issues exist in this runtime copy only.
 - The Inspector Apps tab shows its own tool input fields next to the app. Edits belong in the form titled 이슈 등록 확인; the `수정:` text next to the button shows them. Two early attempts changed severity in the input fields instead, so the draft itself was high and `edits` was empty.
+- 2026-10-28, stage B after Phase 5 follow-up #4 (runtime copy `data/run/phase5-severity.db`, operator `demo`, user-run): the final-severity select started empty and showed the proposal separately. 확정 without a choice was refused in the form, and nothing was written. Keeping the proposal 보통 showed `심각도 확인: 보통 · 수정 없음` and registered medium with `edits: {"severity":"medium"}` (Q-0004). A second draft with a new title, changed to 높음, registered high with `human_changes` medium → high (Q-0006). Details: Phase 5 "Follow-up #1–#4 verification".
 
 Stage B command (the web UI opens with a per-launch token; Tools tab `query_production` → Apps tab `preview_issue` with the returned `Q-…` → open the app → edit in the 이슈 등록 확인 form → 확정; use a new runtime copy per check):
 
@@ -132,7 +133,7 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 - **Schema rejections are not audited.** Invalid arguments are refused by the SDK's input validation before the handler, as for every other tool. Rejections by draft state (used, expired, duplicate, other session, role) reach core and are audited.
 - **A rejected confirm's audit row has no `draft_id`.** The failure result carries no draft ID, so the ID is only in `params`. This is existing core behaviour and stays unchanged; the tests read `params`.
 - **Severity belongs to the person.** Phase 5 follow-up #4 marks the draft as `proposed`, shows the proposed severity separately, and requires `edits.severity` at the app-only entry. The trusted core human API retains its existing contract. No automatic issue-severity thresholds are defined. The `confirm_issue` description lives in `issue-preview.ts`, because the model never sees it.
-- Follow-up verification (2026-10-27): `npm run check` passes (221 tests / 22 files); `scenarios:check` passes. This checks the script and server contract locally; the updated severity interaction still needs an Inspector/Desktop visual check. Descriptions/policy changed under Phase 5 and require new dev runs and a new freeze.
+- Follow-up verification (2026-10-27): `npm run check` passes (221 tests / 22 files); `scenarios:check` passes. This checks the script and server contract locally. The updated severity interaction passed the Inspector check on 2026-10-28; the Desktop check stays with stage C. Descriptions/policy changed under Phase 5 and require full D01–D10 dev runs and a new freeze.
 - Verification: `npm run check` passed with 21 test files and 216 tests.
 
 ---
@@ -212,6 +213,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2026-10-27 | Phase 5 follow-up #4: display proposed severity separately, require an explicit final choice in the form and `edits.severity` in the app schema, retain the chosen value in the issue/audit. Add actual-script tests; `npm run check` passes (221 tests / 22 files). Updated visual interaction awaits Inspector/Desktop verification. |
 | 2026-10-28 | Promo video recorded: 90 s Remotion teaser (`promo-video/`) embedded in the README (c208756); separate from item 5, which stays open |
 | 2026-10-28 | Items 5 and 7 closed by the README video (user decision); ~6 minute demo, README GIFs and replay-page video dropped |
+| 2026-10-28 | Stage B recheck of Phase 5 follow-up #4 passed: empty initial selection, refusal without a choice, kept proposal registered medium, changed proposal registered high with before/after audit |
 
 ---
 ---
@@ -222,7 +224,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 **상태**: 🚧 진행 중
 **선행 조건**: Phase 1~6 완료 (개발 1단계)
-**진행 상황 (2026-10-28)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 5~7번도 완료했다. 5번과 7번은 README 영상으로 마무리했다. 남은 것은 Claude 데스크톱 확인(C 단계)이다.
+**진행 상황 (2026-10-28)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 최종 심각도 선택 필수(Phase 5 후속 4번)도 2026-10-28에 B 단계를 통과했다. 5~7번도 완료했다. 5번과 7번은 README 영상으로 마무리했다. 남은 것은 Claude 데스크톱 확인(C 단계)이다.
 
 ---
 
@@ -278,6 +280,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 - 2026-10-26, 3번 전 B 단계: Inspector 2.12.0 웹 화면이 MCP Apps를 선언했고, `preview_issue` 다음에 폼이 떴다 (초안 `P-4733…`, L4, 2026-09-24, 근거 Q-0002). 확정을 누르자 `tools/call confirm_issue`가 호스트를 거쳐 서버까지 갔고, 서버는 `Tool confirm_issue not found`로 답했다. 3번 전이므로 예상한 결과다. 이슈는 등록되지 않았고, 초안은 `pending`으로 남았으며, 감사 기록은 Q-0001~Q-0003뿐이다. Inspector는 UI capability를 기본으로 선언하고, 화면의 `tools/call`을 서버로 전달한다.
 - 2026-10-27, 3~4번 후 B 단계 (실행용 복사본 `data/run/phase7-stageb-confirm.db`, operator `demo`): 폼에서 심각도를 보통 → 높음으로 바꾸자 `수정: 심각도 보통 → 높음`이 표시됐고, 확정하니 심각도 high로 이슈 1건이 등록됐다. 감사 기록에는 `actor: human`으로 `edits: {"severity":"high"}`와 수정 전후 `human_changes`가 남았다(Q-0014). 중복 제목은 폼에서 서버 안내와 함께 거절됐고 초안은 `pending`으로 남았다(Q-0007). 이미 사용한 초안 번호로 `confirm_issue`를 다시 부르자 `already_used`로 거절됐다(Q-0012). 확인용 이슈 4건은 이 실행용 복사본에만 있다.
 - Inspector Apps 탭에는 앱 옆에 Inspector 자체의 도구 입력 칸이 있다. 수정은 "이슈 등록 확인" 폼에서 해야 하고, 버튼 옆 `수정:` 문구로 확인한다. 처음 두 번은 입력 칸에서 심각도를 바꿔서 초안 자체가 high였고 `edits`는 비어 있었다.
+- 2026-10-28, Phase 5 후속 4번 후 B 단계 (실행용 복사본 `data/run/phase5-severity.db`, operator `demo`, 사용자 실행): 최종 심각도 선택 칸이 빈 값으로 시작했고 제안값이 따로 보였다. 선택 없이 확정하자 폼에서 거절됐고 기록은 없었다. 제안값 보통을 유지하자 `심각도 확인: 보통 · 수정 없음`이 표시됐고 `edits: {"severity":"medium"}`로 medium 이슈가 등록됐다(Q-0004). 새 제목의 두 번째 초안을 높음으로 바꾸자 high로 등록됐고 `human_changes`에 medium → high가 남았다(Q-0006). 자세한 내용은 Phase 5 "후속 1~4번 검증"에 있다.
 
 B 단계 실행 명령 (웹 화면은 실행마다 새 토큰으로 열린다. Tools 탭 `query_production` → 받은 `Q-…`로 Apps 탭 `preview_issue` → 앱 열기 → "이슈 등록 확인" 폼에서 수정 → 확정. 확인마다 새 실행용 복사본을 쓴다):
 
@@ -342,7 +345,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **스키마에서 거절된 요청은 감사 기록에 남지 않는다.** 다른 도구와 마찬가지로 잘못된 인자는 처리기 전에 SDK 입력 검증에서 거절된다. 초안 상태에 따른 거절(사용됨, 만료, 중복, 다른 세션, 역할)은 core까지 가서 기록된다.
 - **거절된 확정의 감사 기록에는 `draft_id`가 비어 있다.** 실패 결과에 초안 번호가 없어서 번호는 `params`에만 남는다. 기존 core 동작이며 바꾸지 않았고, 테스트는 `params`를 읽는다.
 - **심각도는 사람이 결정한다.** Phase 5 후속 4번에 따라 초안을 `proposed`로 표시하고 제안값을 따로 보여주며 화면 전용 입구에서 `edits.severity`를 요구한다. 신뢰된 core 사람 API의 기존 규약은 유지한다. 이슈 심각도의 자동 산정 임계값은 정의하지 않는다. `confirm_issue` 설명은 모델이 보지 않으므로 `issue-preview.ts`에 둔다.
-- 후속 검증(2026-10-27): `npm run check` 통과(테스트 221개/파일 22개), `scenarios:check` 통과. 스크립트와 서버 규약을 로컬에서 확인했으며, 변경한 심각도 선택 동작의 Inspector/Desktop 화면 확인은 남아 있다. Phase 5 설명·정책 변경에 따른 개발용 실행·재동결이 필요하다.
+- 후속 검증(2026-10-27): `npm run check` 통과(테스트 221개/파일 22개), `scenarios:check` 통과. 스크립트와 서버 규약을 로컬에서 확인했다. 변경한 심각도 선택 동작은 2026-10-28 Inspector 확인을 통과했고, 데스크톱 확인은 C 단계에 남아 있다. Phase 5 설명·정책 변경에 따른 D01~D10 전체 개발용 실행·재동결이 필요하다.
 - 확인: `npm run check` 통과 (테스트 파일 21개, 테스트 216개).
 
 ---
@@ -412,3 +415,4 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 2026-10-27 | Phase 5 후속 4번: 심각도 제안을 따로 표시하고 폼의 최종 선택 및 화면 전용 스키마의 `edits.severity`를 필수로 했다. 선택값을 이슈·감사 기록에 반영한다. 실제 스크립트 테스트 추가, `npm run check` 통과(221개/파일 22개). 변경 동작의 Inspector/Desktop 화면 확인은 대기 중이다. |
 | 2026-10-28 | 홍보 영상 기록: 90초 Remotion 티저(`promo-video/`)를 README에 넣음(c208756). 5번과 별개이며 5번은 그대로 남음 |
 | 2026-10-28 | 5번·7번을 README 영상으로 마무리(사용자 결정). 약 6분 데모, README GIF, 재생 페이지 영상은 만들지 않음 |
+| 2026-10-28 | Phase 5 후속 4번 B 단계 재확인 통과: 빈 값으로 시작, 선택 없는 확정 거절, 제안 유지 시 medium 등록, 제안 변경 시 high 등록과 전후 감사 기록 |
