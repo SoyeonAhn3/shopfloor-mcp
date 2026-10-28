@@ -4,7 +4,7 @@
 
 **Status**: 🚧 In Progress
 **Prerequisites**: Phases 1–6 complete (development stage 1)
-**Progress (2026-10-27)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Item 6 done. A separate 90-second promo video is embedded in the README (2026-10-27). Remaining: Claude Desktop check (stage C), item 5 (demo video by the user, GIFs) and item 7.
+**Progress (2026-10-28)**: item 1 decided conditionally (MCP Apps); items 2–4 implemented and checked in MCP Inspector (stage B): form → `confirm_issue` → one issue and a human audit. Items 5–7 done; the README video closes 5 and 7. Remaining: Claude Desktop check (stage C).
 
 ---
 
@@ -14,7 +14,7 @@ The confirm logic already exists in Phase 3. This phase adds only the entry poin
 
 - **Preview.** `preview_issue` points to a `ui://` form resource. The form shows the draft, lets the user edit it, and calls `confirm_issue`.
 - **Confirm tool.** `confirm_issue` is declared app-only, so it is absent from Claude's tool list. Clients without UI support never get it registered.
-- **Finishing work.** After the form: the demo video (about 6 minutes, made by the user), the README GIFs, the install guide and the evaluation report.
+- **Finishing work.** After the form: the demo video (the 90-second video in the README), the install guide and the evaluation report.
 
 ---
 
@@ -26,9 +26,9 @@ The confirm logic already exists in Phase 3. This phase adds only the entry poin
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ rendered in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
 | 3 | `confirm_issue` registration (app-only, UI-capable clients only) + `HumanContext` entry | ✅ checked in Inspector (stage B); Claude Desktop (stage C) pending | project-specific |
 | 4 | `tests/server/confirm.test.ts` (visibility, registration, form → confirm → audit) | ✅ 10 tests | general |
-| 5 | Demo video (about 6 min, made by the user) + README GIFs (2–3) | 🔲 | project-specific |
+| 5 | Demo video: the 90-second video in the README | ✅ | project-specific |
 | 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko update | ✅ (Desktop step in INSTALL unverified) | general |
-| 7 | Replay page: demo video section | 🔲 | project-specific |
+| 7 | Replay page: demo video section | ✅ closed by the README video | project-specific |
 
 **Priority scope (2026-10-26):** items 1–4. Items 5–7 follow after them. Items 2–4 done 2026-10-27; item 1 waits for stage C.
 
@@ -137,27 +137,24 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 
 ---
 
-## Demo & Docs (planned)
+## Demo & Docs
 
 ### Purpose
-Show it working (plan §6): a short video from Claude Desktop, GIFs for the README, and setup docs that work when followed step by step.
+Show it working (plan §6): a short video and setup docs that work when followed step by step.
 
 ### Core Classes / Structure
 | Item | Content |
 |---|---|
-| Demo video | About 6 minutes, made by the user (changed from 2 minutes on 2026-10-27). Plan §5 scenes 1–9 stay the reference flow: daily briefing → L4 low → shortfall breakdown → 09시대 pattern → preview form → severity edit + confirm → audit log |
-| README GIFs | Question and answer with evidence IDs; preview form; audit log entry |
+| Demo video | 90 s silent video in the README (GitHub user-attachments URL, c208756), 1920×1080 · 30 fps, English on screen with Korean subtitles. Chapters WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS. Made with Remotion 4.0.515 in `promo-video/` |
 | `docs/INSTALL.md` | Clone → `npm install` → `npm run generate` → build → Claude Desktop config → first question |
 | `docs/EVALUATION.md` | Run conditions, results per type, tool-set comparison, tuning before/after, limits |
 | README / README_ko | Quick Start with verified commands, status, links to the replay page and video |
-| Promo video (extra) | 90 s silent teaser, 1920×1080 · 30 fps, English on screen with Korean subtitles. Chapters WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS. Remotion 4.0.515 project in `promo-video/` (`npm run build` → `out/shopfloor-promo.mp4`), plan in `promo-video/PLAN.md` |
 
 ### Design Decisions
 - **Record the demo on a fresh DB copy**, so the audit log shows only the demo's calls.
 - **Every command in the docs is run on a clean clone before publishing.** No unverified commands.
 - **Item 6 (2026-10-27).** `docs/INSTALL.md` was checked on a clean clone of `ee85cde` (Windows 10, Node 24.14.0, npm 11.9.0, no Visual Studio). Plain `npm ci` failed: the lockfile carries no `gypfile: false` for `better-sqlite3`, so npm compiles it from source despite its bundled prebuilds. `npm ci --ignore-scripts` succeeded, and `generate`, `validate`, `check`, `db:copy`, `mcp:config` and `mcp:demo` all exited 0. The README Quick Start notes this. `docs/EVALUATION.md` reports the frozen v1 results and links Phase 5 for follow-ups.
-- **The user makes the demo video** (about 6 minutes, decided 2026-10-27). Claude does not produce it; Claude adds the link to the README and the replay page (item 7) once it exists. Plan §1 still says 2 minutes.
-- **The promo video does not replace item 5** (2026-10-27). It is a 90-second teaser for portfolio reviewers; the Claude Desktop walkthrough is still the user's ~6 minute demo. Its DEMO chapter uses two real records with source labels: eval run S10 (answer) and MCP Inspector stage B (form and audit log), not Claude Desktop. The README embeds it above Overview through a GitHub user-attachments URL (c208756), so no video file is kept in the repo. `promo-video/` is not tracked in Git yet.
+- **The README video is the demo video** (user decision, 2026-10-28). It closes items 5 and 7: no separate ~6 minute demo, no README GIFs, no video on the replay page. Its DEMO chapter uses two real records with source labels: eval run S10 (answer) and MCP Inspector stage B (form and audit log).
 
 ### Usage Examples (planned)
 ```
@@ -183,7 +180,6 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 - Claude Desktop with MCP Apps support (version recorded at stage C).
 - MCP Apps package: `@modelcontextprotocol/ext-apps` 2.0.3, pinned exactly.
 - MCP Inspector for stage B, run with `npx` and not added as a project dependency (Node ≥ 22.19).
-- Screen recording tool for the video and GIFs.
 
 ---
 
@@ -198,7 +194,6 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 - **The Phase 5 runner has no UI,** so the confirm path is covered by unit tests and the manual demo, not by the eval runs.
 - **Glossary ranges render as strikethrough.** `resources/glossary.md` writes ranges such as `08:00~08:20`; Markdown viewers (Inspector, GitHub) treat paired `~` as strikethrough. The model receives the raw text, so answers are unaffected. The eval runner puts this resource into the system prompt, so it is left unchanged until the user decides.
 - **The paste-in comparison** (plan §3-5) runs after development as a separate test. It is not part of this phase.
-- **Replay page video slot.** Phase 6 left a placeholder at `#/demo`. The page's CSP allows only same-origin content, so an embedded hosted video (for example YouTube) needs a `frame-src` entry; a video file under `site/` needs no change.
 
 ---
 
@@ -216,6 +211,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2026-10-27 | Item 6: `docs/INSTALL.md` (clean-clone check, `npm ci --ignore-scripts` on Windows without build tools), `docs/EVALUATION.md`, README links |
 | 2026-10-27 | Phase 5 follow-up #4: display proposed severity separately, require an explicit final choice in the form and `edits.severity` in the app schema, retain the chosen value in the issue/audit. Add actual-script tests; `npm run check` passes (221 tests / 22 files). Updated visual interaction awaits Inspector/Desktop verification. |
 | 2026-10-28 | Promo video recorded: 90 s Remotion teaser (`promo-video/`) embedded in the README (c208756); separate from item 5, which stays open |
+| 2026-10-28 | Items 5 and 7 closed by the README video (user decision); ~6 minute demo, README GIFs and replay-page video dropped |
 
 ---
 ---
@@ -226,7 +222,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 **상태**: 🚧 진행 중
 **선행 조건**: Phase 1~6 완료 (개발 1단계)
-**진행 상황 (2026-10-27)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 6번도 완료했다. 별도의 90초 홍보 영상을 README에 넣었다(2026-10-27). 남은 것은 Claude 데스크톱 확인(C 단계), 5번(사용자 제작 데모 영상, GIF), 7번이다.
+**진행 상황 (2026-10-28)**: 1번은 조건부 결정(MCP Apps), 2~4번은 구현하고 MCP Inspector에서 확인했다(B 단계). 폼 → `confirm_issue` → 이슈 1건과 사람의 감사 기록까지 확인했다. 5~7번도 완료했다. 5번과 7번은 README 영상으로 마무리했다. 남은 것은 Claude 데스크톱 확인(C 단계)이다.
 
 ---
 
@@ -236,7 +232,7 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 
 - **미리보기.** `preview_issue`가 `ui://` 폼 리소스를 가리킨다. 폼은 초안을 보여주고, 사용자가 고칠 수 있게 하고, `confirm_issue`를 부른다.
 - **확정 도구.** `confirm_issue`는 화면 전용으로 선언해서 Claude의 도구 목록에 없다. 화면을 지원하지 않는 클라이언트에는 아예 등록하지 않는다.
-- **마무리.** 폼 다음에는 데모 영상(약 6분, 사용자 제작), README GIF, 설치 안내, 평가 기록 문서를 만든다.
+- **마무리.** 폼 다음에는 데모 영상(README의 90초 영상), 설치 안내, 평가 기록 문서를 만든다.
 
 ---
 
@@ -248,9 +244,9 @@ Server: I-… registered; audit: confirm_issue, actor human, edits {"severity":"
 | 2 | `src/server/ui/issue-preview.html` + `issue-preview.ts` (`ui://shopfloor/issue-preview`) | ✅ Inspector 렌더링 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
 | 3 | `confirm_issue` 등록 (화면 전용, 화면 지원 클라이언트만) + `HumanContext` 입구 | ✅ Inspector 확인(B 단계), Claude 데스크톱(C 단계) 전 | 전용 |
 | 4 | `tests/server/confirm.test.ts` (공개 범위, 등록 조건, 폼 → 확정 → 감사 기록) | ✅ 테스트 10개 | 범용 |
-| 5 | 데모 영상 (약 6분, 사용자 제작) + README GIF (2~3개) | 🔲 | 전용 |
+| 5 | 데모 영상: README의 90초 영상 | ✅ | 전용 |
 | 6 | `docs/INSTALL.md`, `docs/EVALUATION.md`, README / README_ko 갱신 | ✅ (INSTALL의 데스크톱 단계는 확인 전) | 범용 |
-| 7 | 결과 재생 페이지: 데모 영상 칸 | 🔲 | 전용 |
+| 7 | 결과 재생 페이지: 데모 영상 칸 | ✅ README 영상으로 마무리 | 전용 |
 
 **우선 범위 (2026-10-26):** 1~4번. 5~7번은 그다음에 진행한다. 2~4번은 2026-10-27에 완료했고, 1번은 C 단계를 기다린다.
 
@@ -351,10 +347,10 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 
 ---
 
-## 데모와 문서 (예정)
+## 데모와 문서
 
 ### 목적
-실제로 동작하는 모습을 보여준다 (기획서 6장). Claude 데스크톱의 짧은 영상, README용 GIF, 따라 하면 바로 실행되는 설치 문서를 만든다.
+실제로 동작하는 모습을 보여준다 (기획서 6장). 짧은 영상과 따라 하면 바로 실행되는 설치 문서를 만든다.
 
 ### 핵심 클래스 / 구조
 위 영어 섹션 표와 동일.
@@ -363,8 +359,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **데모는 새 DB 복사본으로 녹화한다.** 그래야 감사 기록에 데모의 호출만 남는다.
 - **문서의 모든 명령은 게시 전에 새로 받은 저장소에서 실행해 본다.** 확인하지 않은 명령은 쓰지 않는다.
 - **6번 (2026-10-27).** `docs/INSTALL.md`는 `ee85cde`를 새로 받은 저장소에서 확인했다(Windows 10, Node 24.14.0, npm 11.9.0, Visual Studio 없음). 그냥 `npm ci`는 실패했다. 잠금 파일에 `better-sqlite3`의 `gypfile: false`가 없어서, 미리 빌드된 파일이 있는데도 npm이 소스 컴파일을 시도한다. `npm ci --ignore-scripts`는 성공했고 `generate`, `validate`, `check`, `db:copy`, `mcp:config`, `mcp:demo`가 모두 종료 코드 0이었다. README 빠른 시작에 이 내용을 적었다. `docs/EVALUATION.md`는 동결된 v1 결과를 정리하고 후속 항목은 Phase 5로 연결한다.
-- **데모 영상은 사용자가 직접 만든다** (약 6분, 2026-10-27 결정). 2분에서 바꿨다. Claude는 영상을 만들지 않고, 영상이 나오면 README와 재생 페이지(7번)에 연결한다. 기획서 5장 장면 1~9는 참고 흐름으로 둔다. 기획서 1장에는 아직 2분으로 적혀 있다.
-- **홍보 영상은 5번을 대신하지 않는다** (2026-10-27). 포트폴리오 검토자를 위한 90초 무음 티저다(1920×1080 · 30fps, 화면은 영어, 한국어 자막). 장 구성은 WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS다. Claude 데스크톱 시연은 여전히 사용자가 만드는 약 6분 데모다. DEMO 장은 출처 표시를 단 실제 기록 두 개를 쓴다. 평가 실행 S10(답변)과 MCP Inspector B 단계(폼, 감사 기록)이며 Claude 데스크톱 화면이 아니다. 소스는 `promo-video/`의 Remotion 4.0.515 프로젝트(`npm run build` → `out/shopfloor-promo.mp4`), 계획은 `promo-video/PLAN.md`다. README는 Overview 위에 GitHub user-attachments 주소로 영상을 넣었고(c208756), 저장소에는 영상 파일을 두지 않는다. `promo-video/`는 아직 Git에 올리지 않았다.
+- **README 영상을 데모 영상으로 한다** (사용자 결정, 2026-10-28). 5번과 7번을 이것으로 마무리한다. 약 6분 데모, README GIF, 재생 페이지 영상은 만들지 않는다. 90초 무음 영상(1920×1080 · 30fps, 화면은 영어, 한국어 자막)이고, 장 구성은 WHY → HOW → DEMO → FEATURES → SAFEGUARDS → RESULTS다. `promo-video/`에서 Remotion 4.0.515로 만들었고, README에는 GitHub user-attachments 주소로 넣었다(c208756). DEMO 장은 출처 표시를 단 실제 기록 두 개를 쓴다. 평가 실행 S10(답변)과 MCP Inspector B 단계(폼, 감사 기록)다.
 
 ### 사용 예시 (예정)
 위 영어 섹션 코드와 동일.
@@ -385,7 +380,6 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - MCP Apps를 지원하는 Claude 데스크톱 (C 단계에서 버전 기록).
 - MCP Apps 패키지: `@modelcontextprotocol/ext-apps` 2.0.3, 정확한 버전 고정.
 - B 단계용 MCP Inspector. `npx`로 실행하며 프로젝트 의존성에 넣지 않음 (Node 22.19 이상).
-- 영상과 GIF를 위한 화면 녹화 도구.
 
 ---
 
@@ -400,7 +394,6 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **Phase 5 실행기는 화면이 없다.** 그래서 확정 경로는 평가 실행이 아니라 단위 테스트와 수동 데모로 확인한다.
 - **용어집의 범위 표기가 취소선으로 보인다.** `resources/glossary.md`는 `08:00~08:20`처럼 범위를 쓰는데, Markdown 화면(Inspector, GitHub)은 짝을 이룬 `~`를 취소선으로 처리한다. 모델은 원문을 받으므로 답변에는 영향이 없다. 평가 실행기가 이 리소스를 시스템 프롬프트에 넣으므로, 사용자가 결정할 때까지 바꾸지 않는다.
 - **붙여넣기 방식 비교**(기획서 3-5)는 개발 완료 후 별도 테스트로 진행하며, 이 Phase에 포함하지 않는다.
-- **결과 재생 페이지의 영상 칸.** Phase 6에서 `#/demo`에 자리만 두었다. 페이지 CSP는 같은 출처만 허용하므로, 외부 영상(예: YouTube)을 넣으려면 `frame-src`를 추가해야 한다. `site/` 안의 영상 파일은 바꿀 것이 없다.
 
 ---
 
@@ -418,3 +411,4 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 | 2026-10-27 | 6번: `docs/INSTALL.md`(새 클론 확인, 빌드 도구 없는 Windows의 `npm ci --ignore-scripts`), `docs/EVALUATION.md`, README 연결 |
 | 2026-10-27 | Phase 5 후속 4번: 심각도 제안을 따로 표시하고 폼의 최종 선택 및 화면 전용 스키마의 `edits.severity`를 필수로 했다. 선택값을 이슈·감사 기록에 반영한다. 실제 스크립트 테스트 추가, `npm run check` 통과(221개/파일 22개). 변경 동작의 Inspector/Desktop 화면 확인은 대기 중이다. |
 | 2026-10-28 | 홍보 영상 기록: 90초 Remotion 티저(`promo-video/`)를 README에 넣음(c208756). 5번과 별개이며 5번은 그대로 남음 |
+| 2026-10-28 | 5번·7번을 README 영상으로 마무리(사용자 결정). 약 6분 데모, README GIF, 재생 페이지 영상은 만들지 않음 |

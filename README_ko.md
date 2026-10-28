@@ -263,7 +263,6 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 
 **Phase 7 (다음 작업)**
 - Claude 데스크톱에서 폼 확인, Claude 도구 목록에 `confirm_issue`가 없는지 확인
-- 데모 영상(약 6분), README GIF, 재생 페이지 영상 섹션
 
 **평가 후속**
 - `Phase/Phase5_Evaluation.md`의 후속 항목 10개 진행:

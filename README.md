@@ -263,7 +263,6 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 
 **Phase 7 (next)**
 - Claude Desktop check of the form and of `confirm_issue`'s absence from Claude's tool list
-- Demo video (about 6 minutes), README GIFs, video section on the replay page
 
 **Evaluation follow-up**
 - Work through the ten follow-up items in `Phase/Phase5_Evaluation.md`:
