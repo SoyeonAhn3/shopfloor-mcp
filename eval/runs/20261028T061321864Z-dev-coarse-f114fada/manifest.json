@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261028T061321864Z-dev-coarse-f114fada",
+  "set": "dev",
+  "toolset": "coarse",
+  "model": "claude-sonnet-5-5",
+  "descriptionsHash": "a2b8d59578b6d4db86f7f2f4e8cd2fa21aa0137b304cc3bb7a36053201e347ce",
+  "policyHash": "d4b1114fe36770fa39790e6d7c21c153b985ecaa20ddcb6c4dff54ac0ed1cf2e",
+  "scenarioSetHash": "94e2ce590c3a8f3cc09acbf8623db456805c4e6c3067900761062824ed31ecd1",
+  "frozenEvalHash": "e27c7b66cda9894b60c71d6db52737647f4ade8a6cd936ae505e4b973054cb3f",
+  "datasetVersion": "ds-0b8c68a7-6313-40a3-b958-04e6b99820c0",
+  "selectedIds": [
+    "D01",
+    "D02"
+  ],
+  "repeat": 1,
+  "recordFiles": [
+    "D01-r1.json",
+    "D02-r1.json"
+  ],
+  "status": "completed",
+  "stopReason": null,
+  "startedAt": "2026-10-28T06:13:21.865Z",
+  "finishedAt": "2026-10-28T06:13:34.838Z",
+  "estimatedCostUsd": 0.0479646
+}

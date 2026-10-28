@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { CostBudget, EvalError, safeError } from '../../src/eval/claude.js';
+import { describe, expect, it, vi } from 'vitest';
+import { CostBudget, createClaude, EvalError, safeError } from '../../src/eval/claude.js';
 import { executeConversation, type LoopOptions } from '../../src/eval/loop.js';
 import { DEFAULT_LIMITS, emptyUsage, type Event } from '../../src/eval/record.js';
 import { call, MODEL, noChanges, reply, stub, text } from './helpers.js';
@@ -53,6 +53,39 @@ describe('model/MCP exchange', () => {
     expect(s.requests).toHaveLength(0);
     const ok = setup([reply([text('답변')])]); await executeConversation(ok.options);
     expect(ok.options.budget.spent).toBeCloseTo(0.0004);
+  });
+  it('prices cache reads at 0.1x and 5-minute cache writes at 1.25x of the input rate', () => {
+    const budget = new CostBudget(5, { input: 2, output: 10 });
+    const usage = { ...emptyUsage(), inputTokens: 1000, cacheReadTokens: 10_000, cacheWriteTokens: 2000, outputTokens: 100 };
+    budget.charge(usage);
+    expect(usage.estimatedCostUsd).toBeCloseTo(0.01, 9);
+    expect(budget.spent).toBeCloseTo(0.01, 9);
+  });
+  it('reserves counted input at the cache-write rate so a cache-writing call cannot pass the limit', () => {
+    const budget = new CostBudget(0.01, { input: 2, output: 10 });
+    expect(() => budget.ensure(4400, 0)).toThrow(EvalError);
+    budget.ensure(4000, 0);
+  });
+  it('marks the tools and system prefix for caching without changing the prompt and records cache usage', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: MODEL,
+        content: [{ type: 'text', text: '답변' }], stop_reason: 'end_turn', stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 900 } }),
+      { status: 200, headers: { 'content-type': 'application/json', 'request-id': 'req_1' } });
+    });
+    try {
+      const tools = [{ name: 'query_production', input_schema: { type: 'object' as const } }];
+      const result = await createClaude('test-key').complete({ model: MODEL, system: 'system without answers',
+        messages: [{ role: 'user', content: '조회해줘' }], tools, maxTokens: 100 }, new AbortController().signal);
+      expect(bodies).toHaveLength(1);
+      expect(bodies[0]).toMatchObject({ tools,
+        system: [{ type: 'text', text: 'system without answers', cache_control: { type: 'ephemeral' } }] });
+      expect(result.usage).toMatchObject({ inputTokens: 10, outputTokens: 5, cacheReadTokens: 900, cacheWriteTokens: 0 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it('records truncation as an incomplete response and does not execute partial calls', async () => {
     const s = setup([reply([text('미완성'), call('a')], 'max_tokens')]);

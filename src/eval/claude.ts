@@ -41,7 +41,9 @@ export function createClaude(apiKey: string): ModelClient {
     },
     async complete(r, signal) {
       const started = Date.now();
-      const response = await client.messages.create({ model: r.model, system: r.system,
+      // Tools render before system, so this one breakpoint caches both; the prompt text itself is unchanged.
+      const response = await client.messages.create({ model: r.model,
+        system: [{ type: 'text', text: r.system, cache_control: { type: 'ephemeral' } }],
         messages: r.messages, tools: r.tools, max_tokens: r.maxTokens }, { signal });
       const usage: Usage = { ...emptyUsage(), inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens, cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
@@ -51,18 +53,20 @@ export function createClaude(apiKey: string): ModelClient {
     },
   };
 }
+// Requests mark only 5-minute cache entries. Reads use the standard 0.1x; models with cheaper reads are overestimated.
+const CACHE_WRITE = 1.25, CACHE_READ = 0.1;
 export class CostBudget {
   spent = 0;
   constructor(readonly limit: number, readonly rates: { input: number; output: number }) {
     if (![limit, rates.input, rates.output].every(n => Number.isFinite(n) && n > 0)) throw new Error('Invalid cost budget/rates');
   }
   ensure(inputTokens: number, maxOutputTokens: number): void {
-    const reserve = (inputTokens * this.rates.input + maxOutputTokens * this.rates.output) / 1_000_000;
+    // Any counted token may be a cache write, so reserve at the write rate to keep the limit an upper bound.
+    const reserve = (inputTokens * this.rates.input * CACHE_WRITE + maxOutputTokens * this.rates.output) / 1_000_000;
     if (this.spent + reserve > this.limit) throw new EvalError('cost_budget', 'limit', true);
   }
   charge(usage: Usage): void {
-    // Cache writes are conservatively rated at the 1h multiplier, reads at full price.
-    usage.estimatedCostUsd = ((usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens * 2)
+    usage.estimatedCostUsd = ((usage.inputTokens + usage.cacheReadTokens * CACHE_READ + usage.cacheWriteTokens * CACHE_WRITE)
       * this.rates.input + usage.outputTokens * this.rates.output) / 1_000_000;
     this.spent += usage.estimatedCostUsd;
   }

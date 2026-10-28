@@ -2,7 +2,7 @@
 
 > Run the scenarios automatically against Claude through the MCP server, record every tool call and answer as JSON, grade against the answer key, and compare the two tool sets.
 
-**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27 and passed a live dev check on D04/D05/D09 and an Inspector form check on 2026-10-28; full D01–D10 dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-ups #5–#10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
+**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27 and passed a live dev check on D04/D05/D09 and an Inspector form check on 2026-10-28; full D01–D10 dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-up #9 (prompt caching) is implemented and passed a live cache check on 2026-10-28; #5–#8 and #10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
 **Prerequisites**: Phase 2 (frozen scenarios), Phase 4 (server with both tool sets) complete
 
 ---
@@ -182,7 +182,7 @@ The review sheet (`npm run eval:sheet`, added 2026-10-26) is the practical way t
 
 Only full 30-scenario runs with matching model, frozen questions, dataset, description/policy hashes, grader hash, repetition count, limits and prices form a comparison. Partial, interrupted and development runs remain visible separately. Final accuracy stays null until every record in that run has a completed human review.
 
-Pricing/model references checked on 2026-10-23: [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing), [models](https://platform.claude.com/docs/en/models/overview), [tool-use protocol](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use). This run uses standard Sonnet 5.5 rates of USD 2 / million input tokens and USD 10 / million output tokens; no server-side tools or prompt caching are requested.
+Pricing/model references checked on 2026-10-23: [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing), [models](https://platform.claude.com/docs/en/models/overview), [tool-use protocol](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use). The 2026-10-23 runs used standard Sonnet 5.5 rates of USD 2 / million input tokens and USD 10 / million output tokens and requested no server-side tools or prompt caching. From 2026-10-28 (follow-up #9), requests cache the tool definitions and system prompt.
 
 ### Actual evaluation and validation (2026-10-23)
 
@@ -250,7 +250,7 @@ These came from frozen eval results, so improvements belong to a new server vers
 | 6 | S17 | Unsupported follow-up advice ("설비 로그") | Standard wording for missing data: confirm with the floor, check for missing input | descriptions / glossary |
 | 7 | S11, S12 | Value check satisfied by unrelated numbers (dates, other quantities) | Exclude numbers inside dates and require nearby labels; new grader version, regrade separately | `src/eval/grade.ts` (new `graderHash`) |
 | 8 | S09 | Level of detail differed between runs | Measure variance with `--repeat` before treating it as a tool-set effect | eval runs |
-| 9 | External feedback (cost) | No prompt caching: every model call resends the tool definitions at full price (about 27k input tokens per question coarse, 54k fine) | Add `cache_control` to eval requests so tool definitions and the system prompt are read from cache; token and cost figures are then not directly comparable with the N=1 baseline | `src/eval/claude.ts` |
+| 9 | External feedback (cost) | No prompt caching: every model call resends the tool definitions at full price (about 27k input tokens per question coarse, 54k fine) | Implemented 2026-10-28: one 5-minute `cache_control` breakpoint on the system prompt caches tool definitions and system prompt; token and cost figures are then not directly comparable with the N=1 baseline. Live check passed (D01/D02 coarse) | `src/eval/claude.ts` |
 | 10 | Run plan | N=1 cannot separate an improvement from run-to-run variation | Run v1 and v2 with `--repeat 3` on both tool sets and compare per-scenario pass counts (k/3); see the follow-up run plan below | eval runs |
 
 ### Follow-up #3 implementation (2026-10-27)
@@ -303,11 +303,20 @@ No automatic check failed in the six records; the remaining checks are `needs_re
 - **Observations, not failures:** fine D05 compared 15-day totals with anomaly thresholds that apply per hourly slot (`resources/anomaly-criteria.md`); coarse labelled the same comparison as reference only. This is a candidate for later D-set work. D09 proposing medium for a 180-minute breakdown is expected, because no automatic severity rule exists. D09 answers tell the user to register on the confirmation screen, which the runner does not have; this fits D09's criteria.
 - **Scope:** a three-scenario N=1 dev check. It is not a v2 evaluation and does not change the freeze, frozen scenarios or earlier records. A new freeze still needs full D01–D10 runs on both tool sets.
 
+### Follow-up #9 implementation (2026-10-28)
+
+- **Request:** `createClaude().complete()` sends the system prompt as one text block with `cache_control: { type: "ephemeral" }` (5-minute TTL). Tools render before the system prompt, so this single breakpoint caches both. The prompt text, tool list, descriptions/policy hashes, `systemPromptHash`, freeze and record schema are unchanged; the model receives the same content.
+- **Reuse:** every model call inside a scenario reads the prefix, and so does the next scenario with the same role, as long as it starts within 5 minutes. The system prompt holds the role line, so viewer and operator scenarios keep separate entries. Sonnet 5.5's 512-token minimum is far below the prefix (about 10k tokens on the first coarse call).
+- **No conversation-tail caching:** a simulation on the per-call input tokens of the 60 v1 eval records gave about $0.56 (coarse) and $0.87 (fine) of input cost per 30-scenario run with the system breakpoint, against $1.65 and $3.23 uncached. Automatic caching of the growing conversation added only $0.01–0.03 more savings, so it was left out. The simulation assumes the prefix stays warm; the live figure will differ.
+- **Cost estimate:** `CostBudget.charge()` now prices cache reads at 0.1× and cache writes at 1.25× the input rate. Writes are 5-minute entries only, because no request marks a 1-hour entry; models with cheaper reads (for example Opus 5.5 at 0.05×) are overestimated. Records without cache tokens, including all 2026-10-23 runs, get the same estimate as before. The pre-call budget check reserves counted input at the 1.25× write rate, because any counted token may be written to the cache; the limit stays an upper bound, at the cost of stopping slightly earlier than actual spend would require.
+- **Summary note:** `eval:summary` totals `inputTokens`, the uncached remainder only, so cached runs show far smaller input totals than v1. The summary format is unchanged; decide how to report cache tokens with the v1/v2 comparison report.
+- **Validation:** `npm run check` passes (224 tests / 22 files). `tests/eval/loop.test.ts` adds three tests that failed against the previous code: the request body carries the cache breakpoint with unchanged text and tools, and cache usage is recorded (stubbed `fetch`, no API call); cache reads/writes are priced at 0.1×/1.25×; the pre-call reserve covers a cache write. A code review of the uncommitted change found the reserve gap (fixed) and a self-contradicting pricing sentence (fixed). Live check (user-run, `20261028T061321864Z-dev-coarse-f114fada`, D01/D02 coarse, both viewer): D01's first call wrote 10,566 tokens; D01's second call and both D02 calls read those 10,566 tokens, so the prefix was reused within and across scenarios. Cost /usr/bin/bash.048 against /usr/bin/bash.097 for the same scenarios on 2026-10-23 (−51%); D02 alone /usr/bin/bash.013 against /usr/bin/bash.051. No automatic failures; descriptions/policy hashes match the current ones. A repeat run started about 50 s later (`20261028T061409717Z-dev-coarse-104da59c`) read the cache on every call, including the first, and cost /usr/bin/bash.028.
+
 ### Follow-up run plan (`--repeat 3`, not run)
 
 Purpose: tell whether v2 answers better than v1, rather than a one-off difference. A v2-only repeat would still be compared against the N=1 v1 baseline, so v1 is repeated too.
 
-1. Apply #9 (caching) and #7 (grader), then regrade the existing v1 records with the new grader so both versions use one grader.
+1. Apply #9 (caching; implemented 2026-10-28) and #7 (grader), then regrade the existing v1 records with the new grader so both versions use one grader.
 2. Use a separate checkout of the server source from the v1 evaluation, with only the shared caching/grader changes, for the `--repeat 3` baseline on both tool sets. The current source already includes #3 and must not be labeled v1 merely because its description hash matches. Identify server versions in the comparison; existing records stay untouched.
 3. Complete #1–#6 through dev scenarios (D-set) only (#1–#4 are implemented and passed the D04/D05/D09 dev check on 2026-10-28), then re-freeze changed descriptions/policy.
 4. Run v2 with `--repeat 3` on both tool sets.
@@ -318,7 +327,7 @@ Reading the results:
 - #1–#6 are applied together, so a v2 gain cannot be attributed to a single change.
 - Scenarios failing 0/3 in v2 for model-judgement reasons (not missing descriptions) are the input for the deferred Opus 5.5 comparison, coarse only.
 
-Cost: four runs of 30 × 3 = 360 records. API cost is roughly 6× the N=1 pair (about $5.5) without caching, lower with #9; human review of 360 records is the larger load. If review time is short, v2 alone (180 records) is the fallback, with the weaker N=1 baseline noted.
+Cost: four runs of 30 × 3 = 360 records. API cost is roughly 6× the N=1 pair (about $5.5) without caching; with #9 the simulated pair is about $2.0 (input plus output), so about $12 in total. Human review of 360 records is the larger load. If review time is short, v2 alone (180 records) is the fallback, with the weaker N=1 baseline noted.
 
 ## Phase 5 Skill Classification
 
@@ -391,6 +400,8 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 | 2026-10-27 | Implement follow-up #3 using shared Korean labels in downtime details/totals, extend D04 and regression coverage, and preserve descriptions and frozen evaluation artifacts. Synchronize both READMEs and distinguish the changed server from v1; model reevaluation remains pending. No dev-log skill is installed; this change log records the work. |
 | 2026-10-27 | Implement #1/#2/#4: metric descriptions and shared availability policy, revised D05/D09, provisional draft severity and required human severity selection in the form and app schema. Descriptions/policy change; the old freeze and evaluation records remain intact. Live dev/eval and refreeze pending. No dev-log skill is installed; this change log records the work. |
 | 2026-10-28 | Record the #1–#4 verification: the Inspector severity-form check passed, and user-run live dev runs of D04/D05/D09 on both tool sets showed no automatic failures and met each scenario's criteria (Claude comparison, no human review recorded). Record the generic error text that hides evidence mismatches. Freeze, frozen scenarios and earlier records unchanged. |
+| 2026-10-28 | Implement #9: cache tool definitions and the system prompt with one 5-minute breakpoint, price cache reads/writes at 0.1×/1.25× and reserve at the write rate, add 3 tests (224 total). Prompt content, hashes and freeze unchanged; live cache check pending. |
+| 2026-10-28 | Live cache check passed on D01/D02 coarse: the 10,566-token prefix was written once and read by every later call, also across scenarios and a repeat run; cost about half of the 2026-10-23 run. |
 
 ---
 ---
@@ -399,7 +410,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 
 > MCP 서버를 연결한 Claude로 시나리오를 자동 실행하고, 도구 호출과 답변을 모두 JSON으로 남기고, 정답표와 대조해 채점하고, 두 도구 세트를 비교한다.
 
-**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했고, 2026-10-28에 D04·D05·D09 실제 개발용 실행과 Inspector 폼 확인을 통과했다. D01~D10 전체 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 5~10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
+**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했고, 2026-10-28에 D04·D05·D09 실제 개발용 실행과 Inspector 폼 확인을 통과했다. D01~D10 전체 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 9번(프롬프트 캐싱)은 2026-10-28에 구현했고 실제 캐시 확인을 통과했다. 5~8번과 10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
 **선행 조건**: Phase 2(시나리오 동결), Phase 4(두 도구 세트를 갖춘 서버) 완료
 
 ---
@@ -523,7 +534,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 
 전체 30개 실행 중 모델·동결 질문·생성본·도구 설명/정책 해시·채점기 해시·반복 횟수·한도·단가가 같은 기록만 비교한다. 일부 질문·중단·개발용 실행은 별도로 표시한다. 해당 실행의 모든 사람 검수가 끝날 때까지 최종 정답률은 null이다.
 
-2026-10-23 공식 [요금](https://platform.claude.com/docs/en/about-claude/pricing), [모델](https://platform.claude.com/docs/en/models/overview), [도구 호출](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use) 문서를 확인했다. 이번 실행은 Sonnet 5.5 기본 요금인 입력 백만 토큰당 2달러, 출력 백만 토큰당 10달러를 사용하며 서버 측 도구·프롬프트 캐시를 요청하지 않는다.
+2026-10-23 공식 [요금](https://platform.claude.com/docs/en/about-claude/pricing), [모델](https://platform.claude.com/docs/en/models/overview), [도구 호출](https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use) 문서를 확인했다. 2026-10-23 실행은 Sonnet 5.5 기본 요금인 입력 백만 토큰당 2달러, 출력 백만 토큰당 10달러를 사용했고 서버 측 도구·프롬프트 캐시를 요청하지 않았다. 2026-10-28(후속 9번)부터는 요청이 도구 정의와 시스템 프롬프트를 캐시한다.
 
 ### 실제 평가 및 검증 결과 (2026-10-23)
 
@@ -591,7 +602,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 6 | S17 | 근거 없는 후속 조치 제안("설비 로그") | 미입력 시 권할 조치를 정해진 표현으로 안내(현장 확인, 입력 누락 점검) | 도구 설명 / 용어집 |
 | 7 | S11, S12 | 날짜·다른 수량의 숫자로 값 검사 통과 | 날짜 속 숫자 제외, 주변 항목명 확인. 새 채점기 버전으로 별도 재채점 | `src/eval/grade.ts` (새 `graderHash`) |
 | 8 | S09 | 실행마다 상세 수준이 다름 | 도구 구성 효과로 보기 전에 `--repeat`로 변동 측정 | 평가 실행 |
-| 9 | 외부 피드백(비용) | 프롬프트 캐싱 미사용: 모델 호출마다 도구 정의를 정가로 다시 보냄(질문당 입력 coarse 약 2.7만, fine 약 5.4만 토큰) | 평가 요청에 `cache_control`을 넣어 도구 정의·시스템 프롬프트를 캐시로 읽음. 이후 토큰·비용 수치는 기존 N=1 결과와 바로 비교하지 않음 | `src/eval/claude.ts` |
+| 9 | 외부 피드백(비용) | 프롬프트 캐싱 미사용: 모델 호출마다 도구 정의를 정가로 다시 보냄(질문당 입력 coarse 약 2.7만, fine 약 5.4만 토큰) | 2026-10-28 구현: 시스템 프롬프트에 5분 `cache_control` 표시 하나를 달아 도구 정의·시스템 프롬프트를 캐시로 읽음. 이후 토큰·비용 수치는 기존 N=1 결과와 바로 비교하지 않음. 실제 확인 통과(D01·D02 coarse) | `src/eval/claude.ts` |
 | 10 | 실행 계획 | N=1로는 개선 효과와 실행 간 변동을 구분하지 못함 | v1과 v2를 두 도구 구성에서 `--repeat 3`으로 실행하고 시나리오별 통과 횟수(k/3)를 비교. 아래 후속 실행 계획 참고 | 평가 실행 |
 
 ### 후속 3번 구현 (2026-10-27)
@@ -644,11 +655,20 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **실패는 아닌 관찰:** fine D05는 시간대 관측 구간마다 적용하는 이상 기준(`resources/anomaly-criteria.md`)을 15일 합산값과 비교했다. coarse는 같은 비교를 참고용이라고 밝혔다. 나중에 D 세트로 다룰 개선 후보다. D09가 180분 고장에 medium을 제안한 것은 심각도 자동 규칙이 없으므로 예상한 결과다. D09 답변은 확정 화면에서 등록하라고 안내하지만 실행기에는 화면이 없다. D09 기준에는 맞는다.
 - **범위:** 시나리오 3개, N=1 개발용 확인이다. v2 평가가 아니며 동결, 동결된 시나리오, 기존 기록은 바뀌지 않았다. 새 동결에는 여전히 두 도구 구성의 D01~D10 전체 실행이 필요하다.
 
+### 후속 9번 구현 (2026-10-28)
+
+- **요청:** `createClaude().complete()`가 시스템 프롬프트를 `cache_control: { type: "ephemeral" }`(5분 유효)이 붙은 텍스트 블록 하나로 보낸다. 도구가 시스템 프롬프트보다 앞에 놓이므로 이 표시 하나로 둘 다 캐시된다. 프롬프트 문장, 도구 목록, 설명·정책 해시, `systemPromptHash`, 동결, 기록 형식은 그대로이고, 모델이 받는 내용도 같다.
+- **재사용:** 한 시나리오 안의 모든 모델 호출이 이 앞부분을 캐시에서 읽는다. 같은 역할의 다음 시나리오도 5분 안에 시작하면 캐시를 읽는다. 시스템 프롬프트에 역할 줄이 있어서 viewer와 operator 시나리오는 캐시를 따로 쓴다. Sonnet 5.5의 최소 캐시 크기 512토큰은 앞부분(coarse 첫 호출 기준 약 1만 토큰)보다 훨씬 작다.
+- **대화 뒷부분은 캐시하지 않음:** v1 평가 기록 60건의 호출별 입력 토큰으로 계산하면, 30문항 1회의 입력 비용은 캐시가 없을 때 coarse $1.65, fine $3.23이고, 시스템 표시를 두면 약 $0.56, $0.87이다. 늘어나는 대화를 자동 캐싱하면 $0.01~0.03만 더 줄어서 넣지 않았다. 이 계산은 캐시가 계속 유지된다고 가정했으므로 실제 값은 다를 수 있다.
+- **비용 추정:** `CostBudget.charge()`는 캐시 읽기를 입력 단가의 0.1배, 쓰기를 1.25배로 계산한다. 요청이 1시간 캐시를 표시하지 않으므로 쓰기는 모두 5분 캐시다. 읽기가 더 싼 모델(예: Opus 5.5의 0.05배)은 실제보다 높게 추정된다. 캐시 토큰이 없는 기록은 2026-10-23 실행을 포함해 추정값이 전과 같다. 호출 전 비용 한도 검사는 세어 둔 입력을 쓰기 단가인 1.25배로 잡는다. 어떤 토큰이든 캐시에 쓰일 수 있기 때문이다. 그래서 한도는 계속 상한으로 지켜지고, 대신 실제 지출보다 조금 일찍 멈출 수 있다.
+- **요약 주의:** `eval:summary`는 캐시를 뺀 나머지인 `inputTokens`만 합산하므로, 캐시를 쓴 실행은 입력 합계가 v1보다 훨씬 작게 보인다. 요약 형식은 바꾸지 않았고, 캐시 토큰을 어떻게 보고할지는 v1·v2 비교 보고서를 만들 때 정한다.
+- **검증:** `npm run check` 통과(테스트 224개/파일 22개). `tests/eval/loop.test.ts`에 예전 코드에서 실패하던 테스트 3개를 추가했다. 요청 본문에 문장·도구 변경 없이 캐시 표시가 들어가고 캐시 사용량이 기록되는지(`fetch`를 가짜로 바꿔 API 호출 없음), 캐시 읽기·쓰기를 0.1배·1.25배로 계산하는지, 호출 전 한도 검사가 캐시 쓰기 비용까지 잡는지 확인한다. 커밋 전 변경분 코드 리뷰에서 한도 검사의 빈틈과 서로 어긋나는 요금 문장을 찾아 고쳤다. 실제 확인(사용자 실행, `20261028T061321864Z-dev-coarse-f114fada`, D01·D02 coarse, 둘 다 viewer): D01 첫 호출이 10,566토큰을 캐시에 썼고, D01 두 번째 호출과 D02의 두 호출이 모두 그 10,566토큰을 읽었다. 한 시나리오 안에서도, 다음 시나리오로 넘어가서도 재사용됐다. 비용은 /usr/bin/bash.048로 2026-10-23 같은 시나리오의 /usr/bin/bash.097보다 51% 적다(D02만 보면 /usr/bin/bash.051 → /usr/bin/bash.013). 자동 검사 실패는 없고 설명·정책 해시는 현재 값과 같다. 약 50초 뒤 시작한 반복 실행(`20261028T061409717Z-dev-coarse-104da59c`)은 첫 호출을 포함한 모든 호출이 캐시를 읽었고 비용은 /usr/bin/bash.028이었다.
+
 ### 후속 실행 계획 (`--repeat 3`, 미실행)
 
 목적: v2가 v1보다 실제로 더 나은지, 한 번의 우연인지 구분한다. v2만 반복하면 비교 대상이 여전히 N=1인 v1이므로 v1도 반복한다.
 
-1. 9번(캐싱)과 7번(채점기)을 먼저 반영하고, 기존 v1 기록을 새 채점기로 재채점해 두 버전의 채점 기준을 맞춘다.
+1. 9번(캐싱, 2026-10-28 구현)과 7번(채점기)을 먼저 반영하고, 기존 v1 기록을 새 채점기로 재채점해 두 버전의 채점 기준을 맞춘다.
 2. v1 평가 당시 서버 소스를 별도 체크아웃하고 공통 캐싱·채점기 변경만 적용해, 두 도구 구성에서 `--repeat 3`으로 기준점을 확보한다. 현재 소스에는 이미 3번이 반영되어 있으므로 설명 해시가 같아도 v1로 표시하지 않는다. 비교 시 서버 버전을 식별하고 기존 기록은 보존한다.
 3. 1~6번을 개발용 시나리오(D 세트)로만 완료한다(1~4번 구현, 2026-10-28 D04·D05·D09 개발용 확인 통과). 변경한 도구 설명·정책은 다시 동결한다.
 4. v2를 두 도구 구성에서 `--repeat 3`으로 실행한다.
@@ -659,7 +679,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - 1~6번을 함께 반영하므로 v2가 좋아져도 어느 수정의 효과인지는 구분하지 못한다.
 - v2에서 설명 부족이 아닌 모델 판단 때문에 0/3으로 실패한 시나리오가 연기된 Opus 5.5 비교(coarse만)의 대상이 된다.
 
-비용: 30 × 3 실행 4개, 기록 360건. API 비용은 캐시 없이 N=1 한 쌍(약 $5.5)의 약 6배이고 9번을 반영하면 줄어든다. 더 큰 부담은 360건의 사람 검수다. 검수 시간이 부족하면 v2만 실행(180건)하고, 기준점이 N=1이라는 한계를 결과에 적는다.
+비용: 30 × 3 실행 4개, 기록 360건. API 비용은 캐시 없이 N=1 한 쌍(약 $5.5)의 약 6배다. 9번을 반영하면 한 쌍이 약 $2.0(입력·출력 합계)로 계산되어 전체 약 $12다. 더 큰 부담은 360건의 사람 검수다. 검수 시간이 부족하면 v2만 실행(180건)하고, 기준점이 N=1이라는 한계를 결과에 적는다.
 
 ## Phase 5 스킬 범용/전용 분류
 
@@ -732,3 +752,5 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 2026-10-27 | 후속 3번 구현: 비가동 상세·집계에 공통 한국어 이름을 추가하고 D04와 회귀 검증을 확장했다. 설명 파일과 동결된 평가 자료를 보존하고 영문·국문 README를 동기화했으며, 변경 서버를 v1과 구분하도록 기록했다. 모델 재평가는 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |
 | 2026-10-27 | 1·2·4번 구현: 지표 설명과 공통 제공 가능 여부 정책, D05·D09 보완, 초안 심각도의 잠정 표시 및 폼·화면 전용 스키마의 사람 선택 필수화. 설명·정책을 변경하되 이전 동결·평가 기록은 보존했다. 실제 개발용·평가용 실행과 재동결은 대기 중이다. dev-log 스킬 미설치로 이 변경 이력에 기록한다. |
 | 2026-10-28 | 1~4번 검증 기록: Inspector 심각도 폼 확인 통과, 사용자가 실행한 D04·D05·D09 두 도구 구성 개발용 실행에서 자동 검사 실패 없이 시나리오 기준 충족(Claude 대조, 사람 검수 기록 없음). 근거 불일치를 가리는 일반 오류 안내를 기록. 동결, 동결된 시나리오, 기존 기록은 그대로다. |
+| 2026-10-28 | 9번 구현: 시스템 프롬프트의 5분 캐시 표시 하나로 도구 정의·시스템 프롬프트를 캐시하고, 캐시 읽기·쓰기를 0.1배·1.25배로 계산하고 한도 검사는 쓰기 단가로 잡는다. 테스트 3개 추가(전체 224개). 프롬프트 내용·해시·동결은 그대로이며 실제 캐시 확인은 대기 중이다. |
+| 2026-10-28 | D01·D02 coarse로 실제 캐시 확인 통과: 10,566토큰 앞부분을 한 번 쓰고 이후 호출이 모두 읽었다. 다음 시나리오와 반복 실행에서도 재사용됐고 비용은 2026-10-23 실행의 약 절반이다. |

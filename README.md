@@ -174,7 +174,7 @@ The confirmation form can be viewed in MCP Inspector without Claude Desktop; see
 ## Testing
 
 ```sh
-npm run check                 # typecheck + 221 tests in 22 files + build
+npm run check                 # typecheck + 224 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -195,7 +195,7 @@ shopfloor-mcp/
 │   ├── core/              # Periods, metrics, analysis, audit, guarded issue drafts
 │   ├── server/            # MCP tools (coarse/fine), resources, prompts, stdio, MCP Apps form (ui/)
 │   └── eval/              # Eval runner, grading, freeze checks, human review
-├── tests/                 # 221 tests in 22 files
+├── tests/                 # 224 tests in 22 files
 ├── eval/
 │   ├── scenarios/         # 30 eval + 10 dev scenarios, lock, question catalogue
 │   ├── runs/              # Recorded eval runs
@@ -252,7 +252,7 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 ## Limitations
 
 - Evaluation is N=1, so run-to-run variance is not measured. Automatic checks are provisional; final accuracy comes from human review.
-- Phase 5 follow-ups #1–#4 are implemented: metric descriptions, availability policy, Korean downtime labels and human selection of final issue severity. Descriptions/policy changed; new dev runs, refreeze and model reevaluation are pending. Published accuracy still describes v1; #5–#10 remain pending.
+- Phase 5 follow-ups #1–#4 are implemented: metric descriptions, availability policy, Korean downtime labels and human selection of final issue severity. Descriptions/policy changed; new dev runs, refreeze and model reevaluation are pending. Published accuracy still describes v1. #9 (prompt caching for eval requests) is implemented and checked on a live dev run (about half the cost); #5–#8 and #10 remain pending.
 - The confirmation form is checked in MCP Inspector only; Claude Desktop acceptance is pending. The server cannot see who pressed the button: the guarantee rests on app-only visibility in the host, no registration for clients without MCP Apps, and one-time draft IDs.
 - Synthetic data only; no connection to real plant systems. Simplified compared to real MES data: one product per line, no production orders, no equipment-level records, no public holidays.
 - Production quantities are hourly totals; the validator checks capacity but cannot prove the minute each unit was produced.
@@ -266,7 +266,7 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 
 **Evaluation follow-up**
 - Work through the ten follow-up items in `Phase/Phase5_Evaluation.md`:
-  - Enable prompt caching for eval requests, fix the grader's value check and regrade the v1 records
+  - Fix the grader's value check and regrade the v1 records (prompt caching is done)
   - Re-run the preserved v1 server source in a separate checkout with `--repeat 3` on both tool sets as a baseline; the current source already includes #1–#4
   - Verify #1–#4 and apply the remaining candidates through dev scenarios, identify server versions, re-freeze changed descriptions/policy and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
 - Compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain (deferred)

@@ -82,7 +82,7 @@ This demo uses the compiled server over stdio from a different working directory
 
 ## 5. 검증 범위 / Validation scope
 
-- `npm run check`: 타입 검사 + 전체 221개 테스트(파일 22개) + 빌드.
+- `npm run check`: 타입 검사 + 전체 224개 테스트(파일 22개) + 빌드.
 - `npx vitest run tests/server`: MCP 테스트 61개(Phase 4 43개, Phase 7 15개, Phase 5 후속 3개). 도구 선택별 동일 결과, 여러 기간, 상태 구분, 권한, 정보 보호, 입력 거절, 실행용 DB 보호, 실제 stdio 연결, MCP Apps 감지와 확정 폼 연결, 폼 전용 확정(공개 범위, 이슈 1건과 감사 기록, 두 번 클릭·만료·중복 거절), 비가동 사유 한국어 이름, 최종 심각도 선택 필수.
 - `npm run scenarios:check`: 동결 시나리오 무결성. 동결 생성본이 없는 새 체크아웃에서는 Phase 2 안내를 따릅니다.
 - 리소스와 프롬프트는 클라이언트 지원과 사용자의 선택에 따라 노출됩니다. 등록만으로 매 응답에 자동 삽입되지 않습니다.
