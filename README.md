@@ -174,7 +174,7 @@ The confirmation form can be viewed in MCP Inspector without Claude Desktop; see
 ## Testing
 
 ```sh
-npm run check                 # typecheck + 239 tests in 22 files + build
+npm run check                 # typecheck + 239 tests in 22 files + build + replay data check
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```

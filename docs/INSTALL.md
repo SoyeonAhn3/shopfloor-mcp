@@ -50,11 +50,11 @@ npm run check
 |---|---|---|
 | `generate` | `data/`(Git 제외)에 가상 생산 DB, 정답표, 검증 결과, 설정 사본 생성 | V01~V12 `PASS` |
 | `validate` | 생성된 데이터를 다시 검사 | V01~V12 `PASS` |
-| `check` | 타입 검사 + 전체 테스트 + 빌드 (`dist/` 생성) | 테스트 전체 통과, 종료 코드 0 |
+| `check` | 타입 검사 + 전체 테스트 + 빌드 (`dist/` 생성) + 결과 재생 페이지 데이터 검사 | 테스트 전체 통과, `site/data matches the evaluation records`, 종료 코드 0 |
 
 `generate`는 기존 파일을 덮어쓰지 않습니다. 다른 생성본이 필요하면 `npm run generate -- --out-dir <새 폴더>`를 씁니다.
 
-`generate` writes the synthetic DB, answer key, validation report and config snapshot to `data/` and never overwrites existing files. `check` runs typecheck, all tests and the build; later steps need its `dist/` output.
+`generate` writes the synthetic DB, answer key, validation report and config snapshot to `data/` and never overwrites existing files. `check` runs typecheck, all tests, the build and the replay-data check; later steps need its `dist/` output.
 
 ## 4. 실행용 DB 복사본 / Runtime copy
 

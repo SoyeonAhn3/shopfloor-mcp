@@ -6,7 +6,8 @@ Claude가 초안까지만 만들고, 확정은 사람 버튼으로만 한다.
 이 문서와 코드가 다르면 코드를 따르고, 불일치를 사용자에게 알린다.
 
 ## 명령어
-- `npm run check` — typecheck + test + build. 코드 변경의 완료 기준
+- `npm run check` — typecheck + test + build + 결과 재생 페이지 데이터 검사(`site:data -- --check`). 코드 변경의 완료 기준.
+  재생 데이터가 낡았다고 실패하면 `npm run site:data`로 다시 만든다(채점기·검수 화면·평가 기록 변경 시)
 - `npx vitest run tests/<area>` — 영역별 테스트 (core, server, eval ...)
 - `npm run scenarios:check` — 동결 시나리오 무결성 검사 (data/phase2 필요). 없으면 만들지 말고 알린다.
   생성 후 잠금 재연결은 평가 식별값을 바꾸는 재동결이다(절차는 README Phase 2)
