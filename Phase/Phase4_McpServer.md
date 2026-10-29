@@ -69,6 +69,30 @@ await app.server.connect(new StdioServerTransport());
 
 ---
 
+## Tool Sets: coarse vs fine
+
+Both tool sets expose the same core operations; only the tools the model sees differ. **coarse** (default, 4 tools) groups related operations into one tool and selects one with `mode`. **fine** (`--toolset fine`, 10 tools) gives each operation its own tool. Calculations, formatting, evidence IDs, permissions, memo wrapping and the missing confirm tool are shared, and `tests/server` checks that both sets return the same numbers. Phase 5 compares how well the model chooses and uses tools under each set, so a score gap reflects tool design (or run-to-run variance), not a different calculation.
+
+| What it does | coarse (4) | fine (10) |
+|---|---|---|
+| Line info | `get_line_info` | `get_line_info` |
+| Quantities, targets, achievement, line totals | `query_production` mode=production | `get_production`, `get_target_vs_actual`, `compare_lines` |
+| Defects | `query_production` mode=defects | `get_defects` |
+| Downtime | `query_production` mode=downtime | `get_downtime` |
+| Shortfall breakdown | `analyze_production` mode=shortfall | `analyze_shortfall` |
+| Hourly pattern | `analyze_production` mode=hourly_pattern | `analyze_hourly_pattern` |
+| Anomalies | `analyze_production` mode=anomalies | `detect_anomalies` |
+| Issue draft | `preview_issue` | `preview_issue` |
+
+The three fine production tools return the core `getProduction` result (`getAchievement` is the same function and `compareLines` adds the line-comparison note). Every production result carries the note against ranking unlike products by raw quantity, so `query_production(mode=production)` covers all three.
+
+| | coarse | fine |
+|---|---|---|
+| Strength | Fewer tools to choose from; shorter tool definitions (about 27k input tokens per question in v1) | Each tool name states its job; simpler inputs |
+| Weakness | Allowed options differ per `mode`; a wrong combination is rejected | Ten definitions on every call (about 54k input tokens per question in v1); similar tools to choose between |
+
+---
+
 ## Tools — Fine-grained Set (comparison option)
 
 ### Purpose
@@ -234,6 +258,7 @@ Local review artifacts (git-ignored): `logs/test-results/phase4-20261023/report.
 | 2026-10-23 | Implement grouped/fine stdio tools, resources/prompts, copy guard, formatter, setup/demo/config commands and 43 tests. All 157 tests and build pass; record Desktop/model acceptance separately. |
 | 2026-10-23 | Carry frozen Phase 2 scope/metric defaults and period-comparison requirements into the tool input plan. No tool descriptions or server code were implemented. |
 | 2026-10-23 | Connect the completed Phase 3 public API, generic period schema, defect comparison and runtime migration; avoid double auditing. MCP implementation remains pending. |
+| 2026-10-29 | Add the coarse/fine definition with a side-by-side tool map, and name the sets 묶음(coarse)·세부(fine) in the Korean section. Documentation only. |
 
 ---
 ---
@@ -291,7 +316,31 @@ Claude 데스크톱이나 Claude Code가 실행하는 로컬 프로세스로 서
 
 ---
 
-## 도구: 잘게 나눈 버전 (비교용 선택지)
+## 도구 구성: 묶음(coarse)과 세부(fine)
+
+두 구성은 같은 core 기능을 제공하고, 모델에게 보이는 도구 모양만 다르다. **묶음(coarse)**(기본, 도구 4개)은 비슷한 기능을 도구 하나에 모으고 `mode`로 고르게 한다. **세부(fine)**(`--toolset fine`, 도구 10개)는 기능마다 도구가 하나씩 있다. 계산, 응답 형식, 근거 번호, 권한, 메모 감싸기, 확정 도구가 없다는 점은 같으며, `tests/server`가 두 구성이 같은 수치를 반환하는지 확인한다. Phase 5는 각 구성에서 모델이 도구를 얼마나 잘 고르고 쓰는지를 비교한다. 그래서 점수 차이는 계산 차이가 아니라 도구 설계(또는 실행 간 변동)의 차이다.
+
+| 하는 일 | 묶음 (4개) | 세부 (10개) |
+|---|---|---|
+| 라인 정보 | `get_line_info` | `get_line_info` |
+| 생산량·목표·달성률·라인별 실적 | `query_production` mode=production | `get_production`, `get_target_vs_actual`, `compare_lines` |
+| 불량 | `query_production` mode=defects | `get_defects` |
+| 비가동 | `query_production` mode=downtime | `get_downtime` |
+| 목표 미달 원인 분해 | `analyze_production` mode=shortfall | `analyze_shortfall` |
+| 시간대별 패턴 | `analyze_production` mode=hourly_pattern | `analyze_hourly_pattern` |
+| 이상 징후 | `analyze_production` mode=anomalies | `detect_anomalies` |
+| 이슈 초안 | `preview_issue` | `preview_issue` |
+
+세부의 생산 도구 3개는 모두 core `getProduction` 결과를 반환한다(`getAchievement`는 같은 함수이고 `compareLines`는 라인 비교 안내를 붙인다). 모든 생산 결과에 제품이 다른 라인을 수량만으로 순위 매기지 말라는 안내가 붙으므로 `query_production(mode=production)` 하나가 셋을 대신한다.
+
+| | 묶음 | 세부 |
+|---|---|---|
+| 좋은 점 | 고를 도구가 적다. 도구 정의가 짧다(v1 질문당 입력 약 2.7만 토큰) | 도구 이름이 하는 일을 말해 준다. 입력이 단순하다 |
+| 약한 점 | `mode`마다 허용 옵션이 달라 잘못 조합하면 거절된다 | 호출마다 도구 정의 10개를 보낸다(v1 질문당 입력 약 5.4만 토큰). 비슷한 도구 중에서 골라야 한다 |
+
+---
+
+## 도구: 세부 구성 fine (비교용 선택지)
 
 ### 목적
 기획서 3-1의 도구를 서버 로직 함수 하나씩에 연결하고, 입력은 zod로 검증한다.
@@ -310,7 +359,7 @@ Claude 데스크톱이나 Claude Code가 실행하는 로컬 프로세스로 서
 
 ---
 
-## 도구: 크게 묶은 버전 (기본)
+## 도구: 묶음 구성 coarse (기본)
 
 ### 목적
 기본으로 사용할 MCP 입구 4개다. 내부 계산은 Phase 3 함수를 재사용한다. 자세한 함수 연결은 위 영어 섹션 표와 같다.
@@ -355,7 +404,7 @@ Claude에게 참고 자료와 메뉴 템플릿 2개를 준다 (기획서 3-1).
 | 스킬 | 분류 | 이유 |
 |---|---|---|
 | stdio 진입점, 실행 설정, 메모리 안 MCP 테스트 | 범용 | 표준 MCP 서버 뼈대 |
-| 도구, 설명, 리소스, 프롬프트, 크게 묶은 버전 | 전용 | 이 도메인의 도구와 표현 |
+| 도구, 설명, 리소스, 프롬프트, 묶음 구성(coarse) | 전용 | 이 도메인의 도구와 표현 |
 
 ---
 
@@ -408,3 +457,4 @@ Claude에게 참고 자료와 메뉴 템플릿 2개를 준다 (기획서 3-1).
 | 2026-10-23 | 묶음·세부 stdio 도구, 자료·템플릿, 실행용 복사본 보호, 응답 포맷, 연결·데모·설정 명령과 테스트 43개 구현. 전체 157개·빌드 통과. Desktop·모델 확인은 별도 미실행으로 기록. |
 | 2026-10-23 | 동결한 Phase 2의 대상·지표 기본값과 기간 비교 요구사항을 도구 입력 계획에 반영. 도구 설명과 서버 코드는 미구현 유지. |
 | 2026-10-23 | 완료한 Phase 3 호출 경로·일반 기간 스키마·불량 비교·실행용 스키마 변경을 연결하고 감사 중복을 방지하도록 계획 갱신. MCP 구현은 미착수 유지. |
+| 2026-10-29 | 묶음(coarse)·세부(fine) 정의와 두 구성의 도구 대응표를 추가하고, 국문 절의 구성 이름을 묶음·세부로 통일. 문서만 변경. |

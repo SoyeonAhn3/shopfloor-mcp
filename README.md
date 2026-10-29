@@ -102,7 +102,7 @@ Errors tell Claude what went wrong and what is possible, so it can recover. Exam
 
 - 30 frozen eval scenarios across 8 types (simple lookup, multi-step analysis, recurring pattern, ambiguous question, missing data and traps, out-of-permission request, change request, attack attempt), plus 10 dev scenarios used only for tuning tool descriptions
 - Grading against an answer key computed from the planted events, independent of the server's calculation code, followed by human review of every record
-- Coarse (4 tools) vs fine (10 tools) comparison on `claude-sonnet-5-5`, N=1, all 60 records human-reviewed:
+- Two tool sets compared on `claude-sonnet-5-5`, N=1, all 60 records human-reviewed. Both run the same calculations and return the same results; only the tools Claude sees differ. **coarse** (default) groups related functions into 4 tools selected by `mode`; **fine** gives each function its own tool, 10 in total. A score gap therefore reflects tool design, not calculation. Tool map: [Phase 4](Phase/Phase4_McpServer.md#tool-sets-coarse-vs-fine).
 
 | Tool set | Final accuracy | Avg. tool calls | Avg. time (s) |
 |---|---:|---:|---:|
@@ -179,7 +179,7 @@ npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
 
-Tests never read `.env` or call a paid API. They use real SQLite fixtures and the built stdio server, and cover period resolution, metrics and status handling, guarded drafts, grouped/fine tool parity, permissions and privacy, eval grading and review integrity, and the replay page data build. No coverage report is configured.
+Tests never read `.env` or call a paid API. They use real SQLite fixtures and the built stdio server, and cover period resolution, metrics and status handling, guarded drafts, coarse/fine tool parity, permissions and privacy, eval grading and review integrity, and the replay page data build. No coverage report is configured.
 
 Known environment issue: if the project path contains non-ASCII characters, `tests/eval/scenarios.test.ts` fails to run because of a Node.js `fs.cpSync` crash.
 

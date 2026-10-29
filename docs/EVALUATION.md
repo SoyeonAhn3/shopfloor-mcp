@@ -22,6 +22,7 @@ Thirty frozen questions, one run per tool set (N=1), all 60 records human-review
 | 항목 | 값 |
 |---|---|
 | 모델 | `claude-sonnet-5-5` (실행마다 고정, 기록에 저장) |
+| 도구 구성 | 묶음(coarse, 기본): 비슷한 기능을 도구 4개에 모아 `mode`로 고름. 세부(fine): 기능마다 도구 하나, 10개. 계산과 결과는 같고 Claude에게 보이는 도구 모양만 다름. 대응표: [Phase 4](../Phase/Phase4_McpServer.md#tool-sets-coarse-vs-fine) |
 | 질문 | 동결된 평가 질문 S01~S30 (8개 유형), 개발용 D01~D10은 도구 설명 조정에만 사용 |
 | 실행 | `20261023T073705712Z-eval-coarse-845d6c72`, `20261023T073937732Z-eval-fine-23f3d69f` (2026-10-23) |
 | 클라이언트 | 평가 실행기가 MCP 클라이언트로 빌드된 서버를 stdio로 실행. Claude 데스크톱과 같은 서버 파일 |
@@ -32,7 +33,7 @@ Thirty frozen questions, one run per tool set (N=1), all 60 records human-review
 
 두 실행은 모델, 질문, 데이터셋, 도구 설명·정책·채점기 해시, 서버 빌드 해시(2026-10-28 이후 기록), 반복 수, 한도와 단가가 같을 때만 비교합니다. 비교 조건은 [eval/summary.md](../eval/summary.md)가 확인합니다.
 
-The runner is the MCP client and starts the same built server Claude Desktop runs, with a fresh DB copy per question. Only the question turns reach the model; answer keys and expectations stay in the grader. Runs are compared only when model, questions, dataset, description/policy/grader hashes, server build hash (records from 2026-10-28), repetitions, limits and prices all match.
+coarse (default) groups related functions into 4 tools selected by `mode`; fine gives each function its own tool (10). Both run the same calculations; only the tools the model sees differ. The runner is the MCP client and starts the same built server Claude Desktop runs, with a fresh DB copy per question. Only the question turns reach the model; answer keys and expectations stay in the grader. Runs are compared only when model, questions, dataset, description/policy/grader hashes, server build hash (records from 2026-10-28), repetitions, limits and prices all match.
 
 ## 3. 채점 방식 / Grading
 
