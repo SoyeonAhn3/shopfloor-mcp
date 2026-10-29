@@ -330,7 +330,7 @@ The default input is `last_month` against `data/phase2/production.db`. `--db` se
 | 2026-10-21 | Make confirmation validation, issue/draft writes and success audit atomic; add per-draft uniqueness, rollback and concurrent-confirmation checks. |
 | 2026-10-23 | Carry Phase 2 weekly-comparison requirements into planned relative-week input and server-computed period comparison. Core implementation remains pending. |
 | 2026-10-23 | Implemented generic periods, validated/audited core operations, metrics/records/analysis, guarded draft/confirm transactions, 24-hour duplicates, criteria resource and CLI demo. 114 tests/typecheck/build passed; frozen scenarios unchanged. |
-| 2026-10-29 | Add `InputError` for caller-facing input problems: evidence mismatches return `invalid_evidence` with the specific reason (for example 조회 근거의 라인과 생산일을 확인해 주세요), other draft/period input problems keep `invalid_input` with their own reason, and schema or built-in runtime errors keep the generic text. The server adds a re-query hint for `invalid_evidence`. |
+| 2026-10-29 | Add `InputError` for caller-facing input problems: evidence mismatches return `invalid_evidence` with the specific reason (for example 조회 근거의 라인과 생산일을 확인해 주세요), other draft/period input problems keep `invalid_input` with their own reason, and schema or built-in runtime errors keep the generic text. The server adds a re-query hint for `invalid_evidence`. After review, the `invalid_input` hint points at the stated reason instead of the schema, the `denied` hint no longer mentions evidence, and any malformed draft number returns 초안 번호를 확인해 주세요. |
 
 ---
 ---
@@ -552,4 +552,4 @@ MCP에 기대는 것이 없으므로 모든 함수를 DB 복사본으로 바로 
 | 2026-10-21 | 확정 검증·이슈 및 초안 저장·성공 감사 기록을 하나의 트랜잭션으로 처리. 초안별 고유 제약과 롤백·동시 확정 검증 추가. |
 | 2026-10-23 | Phase 2 주간 비교 요구사항을 상대 주차 입력과 서버 기간 비교 계획에 반영. core 구현은 미착수 유지. |
 | 2026-10-23 | 일반화한 기간 처리, 검증·감사 호출 경로, 집계·기록·분석, 초안·확정 트랜잭션, 24시간 중복 방지, 이상 기준 문서와 CLI 구현. 테스트 114개·타입 검사·빌드 통과. 동결 시나리오 유지. |
-| 2026-10-29 | 호출자에게 보여 줄 입력 오류용 `InputError` 추가. 근거 불일치는 `invalid_evidence`와 구체적인 이유(예: "조회 근거의 라인과 생산일을 확인해 주세요")를 돌려주고, 그 밖의 초안·기간 입력 문제는 `invalid_input`에 각자의 이유를 담는다. 스키마 오류와 JavaScript 내부 오류는 일반 안내를 유지한다. 서버는 `invalid_evidence`에 재조회 안내를 붙인다. |
+| 2026-10-29 | 호출자에게 보여 줄 입력 오류용 `InputError` 추가. 근거 불일치는 `invalid_evidence`와 구체적인 이유(예: "조회 근거의 라인과 생산일을 확인해 주세요")를 돌려주고, 그 밖의 초안·기간 입력 문제는 `invalid_input`에 각자의 이유를 담는다. 스키마 오류와 JavaScript 내부 오류는 일반 안내를 유지한다. 서버는 `invalid_evidence`에 재조회 안내를 붙인다. 리뷰 반영: `invalid_input` 안내는 스키마 대신 요약의 이유를 가리키고, `denied` 안내는 근거를 언급하지 않으며, 형식이 틀린 초안 번호는 모두 "초안 번호를 확인해 주세요."를 돌려준다. |

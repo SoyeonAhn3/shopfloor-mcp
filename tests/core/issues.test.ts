@@ -103,7 +103,10 @@ describe('draft/confirm permissions and transactions', () => {
     const result = audited(tool, 'test_query', {}, () => { throw new RangeError('Invalid time value'); });
     expect(result).toMatchObject({ ok: false, reason: 'invalid_input' });
     expect(JSON.stringify(result)).not.toContain('Invalid time value');
-    expect(confirmDraft(human, 'Q-00000000-0000-4000-8000-000000000000')).toMatchObject({ reason: 'invalid_input', message: '초안 번호를 확인해 주세요.' });
+  });
+  it('reports any malformed draft number with the same specific reason', () => {
+    for (const id of ['Q-00000000-0000-4000-8000-000000000000', 'P-123', 'abc'])
+      expect(confirmDraft(human, id)).toMatchObject({ reason: 'invalid_input', message: '초안 번호를 확인해 주세요.' });
   });
   it.each(['insertIssue', 'updateDraft', 'insertAudit'] as const)('rolls back all writes if %s fails, then logs the failure outside the transaction', stage => {
     const d = draft();

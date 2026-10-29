@@ -66,8 +66,7 @@ export function confirmDraft(ctx: HumanContext, draftId: string, edits: DraftEdi
   return audited(ctx, 'confirm_issue', { draftId, edits }, () => {
     if (!humanContexts.has(ctx) || ctx.actor !== 'human') throw new DeniedError('사람의 확정 경로만 사용할 수 있습니다.');
     requireOperator(ctx.role);
-    z.string().uuid().parse(draftId.slice(2));
-    if (!draftId.startsWith('P-')) throw new InputError('초안 번호를 확인해 주세요.');
+    if (!draftId.startsWith('P-') || !z.string().uuid().safeParse(draftId.slice(2)).success) throw new InputError('초안 번호를 확인해 주세요.');
     const changes = editsSchema.parse(edits), draft = ctx.writer.getDraft(draftId);
     if (!draft) return { ok: false as const, reason: 'not_found', message: '초안을 찾을 수 없습니다.' };
     if (draft.session_id !== ctx.sessionId) throw new DeniedError('다른 세션의 초안은 확정할 수 없습니다.');

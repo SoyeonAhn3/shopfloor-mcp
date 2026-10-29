@@ -174,7 +174,7 @@ The confirmation form can be viewed in MCP Inspector without Claude Desktop; see
 ## Testing
 
 ```sh
-npm run check                 # typecheck + 237 tests in 22 files + build
+npm run check                 # typecheck + 239 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -195,7 +195,7 @@ shopfloor-mcp/
 │   ├── core/              # Periods, metrics, analysis, audit, guarded issue drafts
 │   ├── server/            # MCP tools (coarse/fine), resources, prompts, stdio, MCP Apps form (ui/)
 │   └── eval/              # Eval runner, grading, freeze checks, human review
-├── tests/                 # 237 tests in 22 files
+├── tests/                 # 239 tests in 22 files
 ├── eval/
 │   ├── scenarios/         # 30 eval + 10 dev scenarios, lock, question catalogue
 │   ├── runs/              # Recorded eval runs

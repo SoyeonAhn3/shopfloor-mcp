@@ -213,6 +213,8 @@ describe('resources, prompt templates, permissions and reference data', () => {
       description: '관측 결과 확인', evidenceRefs: [q.body.evidenceId] };
     const denied = await call(viewer, 'preview_issue', args);
     expect(denied.result.isError).toBe(true); expect(denied.body.reason).toBe('denied');
+    expect(denied.body.recovery).toContain('operator');
+    expect(denied.body.recovery).not.toContain('근거');
     const foreign = await call(fine, 'preview_issue', args);
     expect(foreign.result.isError).toBe(true);
     const draft = await call(coarse, 'preview_issue', args);
@@ -234,5 +236,13 @@ describe('resources, prompt templates, permissions and reference data', () => {
       expect(mismatch.body.recovery).toContain('먼저 조회');
       expect(mismatch.body.recovery).not.toContain('스키마');
     }
+  });
+  it('points a specific input reason at that reason rather than at the schema', async () => {
+    const q = await call(coarse, 'query_production', { mode: 'production', period, lineIds: ['L1'] });
+    const holiday = await call(coarse, 'preview_issue', { lineId: 'L1', relatedDate: '2026-09-26', title: '휴무일 초안',
+      severity: 'medium', description: '관측 결과 확인', evidenceRefs: [q.body.evidenceId] });
+    expect(holiday.body).toMatchObject({ reason: 'invalid_input', summary: '유효한 생산일이 필요합니다.' });
+    expect(holiday.body.recovery).toContain('summary');
+    expect(holiday.body.recovery).not.toContain('스키마');
   });
 });

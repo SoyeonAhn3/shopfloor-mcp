@@ -34,9 +34,9 @@ function recovery(raw: Row): string | undefined {
     const available = isRow(raw.available) ? raw.available : {};
     return '조회 가능 범위 ' + available.from + '~' + available.to + '의 생산일을 선택하세요. 원래 요청의 범위를 임의로 바꾸지 마세요.';
   }
-  if (raw.reason === 'denied') return 'preview_issue는 operator 역할과 같은 세션에서 조회한 라인·생산일의 근거가 필요합니다. 실행 역할은 AI가 변경할 수 없습니다.';
+  if (raw.reason === 'denied') return 'preview_issue는 operator 역할로 실행한 서버에서만 사용할 수 있습니다. 실행 역할은 AI가 변경할 수 없으므로 초안을 만들 수 없다고 안내하세요.';
   if (raw.reason === 'invalid_evidence') return '초안의 라인·생산일을 같은 세션에서 먼저 조회하고, 그 조회 결과의 evidenceId를 evidenceRefs에 넣으세요. 근거와 맞지 않는 날짜로 바꾸지 마세요.';
-  if (raw.reason === 'invalid_input') return '도구 입력 스키마를 확인하세요. 라인은 L1~L6, period는 구조화된 생산일 조건입니다.';
+  if (raw.reason === 'invalid_input') return 'summary의 이유에 맞게 입력을 고치세요. 라인은 L1~L6, period는 구조화된 생산일 조건입니다.';
   return '서버와 실행용 DB 상태를 확인한 후 다시 시도하세요. 성공으로 처리하지 마세요.';
 }
 export function formatResult(result: object, context: { tool: string; mode?: string; production?: boolean; ui?: boolean }): CallToolResult {
