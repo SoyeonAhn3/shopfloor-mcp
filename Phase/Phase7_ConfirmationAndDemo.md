@@ -112,7 +112,7 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 ### Design Decisions (item 2)
 - **The View protocol is written inline instead of bundling the SDK `App` class.** `App` pulls the MCP client, core and zod into a bundle of about 400 KB and needs a bundler, which the project does not have. `review-sheet.html` already sets the inline-HTML pattern, and the message set is small and fixed by the stable spec. `ext-apps` is used on the server (`registerAppResource`, `getUiCapability`, MIME type and meta key constants).
 - **Text clients keep the same tool/resource counts.** The eval runner, Claude Code and the Inspector CLI declare no MCP Apps capability, so the form and confirmation tool are absent. Phase 5 follow-ups #1/#2/#4 now change descriptions/policy and add a provisional-severity notice; the old evaluation freeze remains historical.
-- **Resolved by Phase 5 follow-up #4:** `preview_issue` now says clients without a form stop at a draft, while a person chooses severity in supported forms. This description change requires new dev runs and a new freeze.
+- **Resolved by Phase 5 follow-up #4:** `preview_issue` now says clients without a form stop at a draft, while a person chooses severity in supported forms. This description change is not frozen; any later eval run needs new dev runs and a new freeze first (Phase 5 closed on v1, 2026-10-29).
 - **No `<form>` submit.** A sandboxed iframe without `allow-forms` can block form submission, so the button is `type="button"` with a click handler.
 - 2026-10-26: the Inspector 2.12.0 CLI (declares no MCP Apps) against the built server listed 4 resources and no `_meta` on `preview_issue`. The Inspector web client declares MCP Apps by default (`defaultAdvertised: true` in its bundle), so stage B uses the web UI.
 
@@ -133,7 +133,7 @@ preview_issue                      _meta.ui.resourceUri = "ui://shopfloor/issue-
 - **Schema rejections are not audited.** Invalid arguments are refused by the SDK's input validation before the handler, as for every other tool. Rejections by draft state (used, expired, duplicate, other session, role) reach core and are audited.
 - **A rejected confirm's audit row has no `draft_id`.** The failure result carries no draft ID, so the ID is only in `params`. This is existing core behaviour and stays unchanged; the tests read `params`.
 - **Severity belongs to the person.** Phase 5 follow-up #4 marks the draft as `proposed`, shows the proposed severity separately, and requires `edits.severity` at the app-only entry. The trusted core human API retains its existing contract. No automatic issue-severity thresholds are defined. The `confirm_issue` description lives in `issue-preview.ts`, because the model never sees it.
-- Follow-up verification (2026-10-27): `npm run check` passes (221 tests / 22 files); `scenarios:check` passes. This checks the script and server contract locally. The updated severity interaction passed the Inspector check on 2026-10-28; the Desktop check stays with stage C. Descriptions/policy changed under Phase 5 and require full D01–D10 dev runs and a new freeze.
+- Follow-up verification (2026-10-27): `npm run check` passes (221 tests / 22 files); `scenarios:check` passes. This checks the script and server contract locally. The updated severity interaction passed the Inspector check on 2026-10-28; the Desktop check stays with stage C. Descriptions/policy changed under Phase 5 and are not frozen; a later eval run needs full D01–D10 dev runs and a new freeze first (Phase 5 closed on v1, 2026-10-29).
 - Verification: `npm run check` passed with 21 test files and 216 tests.
 
 ---
@@ -324,7 +324,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 ### 설계 결정 사항 (2번)
 - **SDK의 `App` 클래스를 번들링하지 않고 화면 프로토콜을 인라인으로 썼다.** `App`을 쓰면 MCP client, core, zod가 약 400KB 번들로 들어가고 번들러가 필요한데, 프로젝트에는 번들러가 없다. `review-sheet.html`이 이미 인라인 HTML 방식의 선례이고, 메시지 종류는 적고 안정 스펙으로 고정되어 있다. `ext-apps`는 서버 쪽에서 쓴다(`registerAppResource`, `getUiCapability`, MIME 타입과 메타 키 상수).
 - **텍스트 클라이언트의 도구·리소스 수는 그대로다.** 평가 실행기, Claude Code, Inspector CLI는 MCP Apps를 선언하지 않으므로 폼과 확정 도구가 없다. Phase 5 후속 1·2·4번에서 설명·정책을 바꾸고 심각도의 잠정 안내를 추가했으며, 기존 평가 동결은 과거 버전의 기록으로 보존한다.
-- **Phase 5 후속 4번에서 해결:** `preview_issue`는 폼 미지원 환경에서는 초안까지만 제공하고, 지원 환경에서는 사람이 폼에서 심각도를 선택한다고 설명한다. 설명 변경에 따른 개발용 실행과 재동결이 필요하다.
+- **Phase 5 후속 4번에서 해결:** `preview_issue`는 폼 미지원 환경에서는 초안까지만 제공하고, 지원 환경에서는 사람이 폼에서 심각도를 선택한다고 설명한다. 이 설명 변경은 동결되지 않았으며, 나중에 평가를 실행하려면 먼저 개발용 실행과 재동결이 필요하다(Phase 5는 2026-10-29 v1으로 마감).
 - **`<form>` 제출을 쓰지 않는다.** `allow-forms`가 없는 sandbox iframe에서는 폼 제출이 막힐 수 있으므로 `type="button"` 버튼의 클릭 처리로 확정한다.
 - 2026-10-26: MCP Apps를 선언하지 않는 Inspector 2.12.0 CLI로 빌드된 서버에 연결하니 리소스 4개, `preview_issue`의 `_meta` 없음으로 나왔다. Inspector 웹 화면은 MCP Apps를 기본으로 선언하므로(번들의 `defaultAdvertised: true`) B 단계는 웹 화면으로 한다.
 
@@ -345,7 +345,7 @@ npx -y @modelcontextprotocol/inspector@2.12.0 node dist/server/index.js --db dat
 - **스키마에서 거절된 요청은 감사 기록에 남지 않는다.** 다른 도구와 마찬가지로 잘못된 인자는 처리기 전에 SDK 입력 검증에서 거절된다. 초안 상태에 따른 거절(사용됨, 만료, 중복, 다른 세션, 역할)은 core까지 가서 기록된다.
 - **거절된 확정의 감사 기록에는 `draft_id`가 비어 있다.** 실패 결과에 초안 번호가 없어서 번호는 `params`에만 남는다. 기존 core 동작이며 바꾸지 않았고, 테스트는 `params`를 읽는다.
 - **심각도는 사람이 결정한다.** Phase 5 후속 4번에 따라 초안을 `proposed`로 표시하고 제안값을 따로 보여주며 화면 전용 입구에서 `edits.severity`를 요구한다. 신뢰된 core 사람 API의 기존 규약은 유지한다. 이슈 심각도의 자동 산정 임계값은 정의하지 않는다. `confirm_issue` 설명은 모델이 보지 않으므로 `issue-preview.ts`에 둔다.
-- 후속 검증(2026-10-27): `npm run check` 통과(테스트 221개/파일 22개), `scenarios:check` 통과. 스크립트와 서버 규약을 로컬에서 확인했다. 변경한 심각도 선택 동작은 2026-10-28 Inspector 확인을 통과했고, 데스크톱 확인은 C 단계에 남아 있다. Phase 5 설명·정책 변경에 따른 D01~D10 전체 개발용 실행·재동결이 필요하다.
+- 후속 검증(2026-10-27): `npm run check` 통과(테스트 221개/파일 22개), `scenarios:check` 통과. 스크립트와 서버 규약을 로컬에서 확인했다. 변경한 심각도 선택 동작은 2026-10-28 Inspector 확인을 통과했고, 데스크톱 확인은 C 단계에 남아 있다. Phase 5에서 바뀐 설명·정책은 동결되지 않았으며, 나중에 평가를 실행하려면 먼저 D01~D10 전체 개발용 실행과 재동결이 필요하다(Phase 5는 2026-10-29 v1으로 마감).
 - 확인: `npm run check` 통과 (테스트 파일 21개, 테스트 216개).
 
 ---

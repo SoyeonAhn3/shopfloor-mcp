@@ -253,7 +253,7 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 ## Limitations
 
 - Evaluation is N=1, so run-to-run variance is not measured. Automatic checks are provisional; final accuracy comes from human review.
-- Phase 5 follow-ups #1–#4 are implemented: metric descriptions, availability policy, Korean downtime labels and human selection of final issue severity. Descriptions/policy changed; new dev runs, refreeze and model reevaluation are pending. Published accuracy still describes v1. #9 (prompt caching for eval requests) is implemented and checked on a live dev run (about half the cost); #5–#8 and #10 remain pending.
+- Phase 5 is closed on v1 (2026-10-29): the published accuracy is the v1 result and does not measure later changes. Follow-ups #1–#4 (metric descriptions, availability policy, Korean downtime labels, human selection of final issue severity) were checked on dev scenarios only; #7 (value grading) and #9 (prompt caching) are implemented. The v2 reevaluation was dropped because the follow-ups were chosen from the eval set's own failures; #5/#6 (asking for an ambiguous criterion, standard advice when data is missing) are not implemented. The current descriptions/policy are not frozen, so a new eval run needs dev runs and a refreeze first.
 - The confirmation form is checked in MCP Inspector only; Claude Desktop acceptance is pending. The server cannot see who pressed the button: the guarantee rests on app-only visibility in the host, no registration for clients without MCP Apps, and one-time draft IDs.
 - Synthetic data only; no connection to real plant systems. Simplified compared to real MES data: one product per line, no production orders, no equipment-level records, no public holidays.
 - Production quantities are hourly totals; the validator checks capacity but cannot prove the minute each unit was produced.
@@ -265,12 +265,9 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 **Phase 7 (next)**
 - Claude Desktop check of the form and of `confirm_issue`'s absence from Claude's tool list
 
-**Evaluation follow-up**
-- Work through the ten follow-up items in `Phase/Phase5_Evaluation.md`:
-  - Regrade the v1 records with the new grader (the value-check fix and prompt caching are done)
-  - Re-run the preserved v1 server source in a separate checkout with `--repeat 3` on both tool sets as a baseline; the current source already includes #1–#4
-  - Verify #1–#4 and apply the remaining candidates through dev scenarios (records now identify the server build), re-freeze changed descriptions/policy and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
-- Compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain (deferred)
+**Evaluation (after development, conditional)**
+- Build a new, unseen eval scenario set before any further evaluation, so improvements are not measured on the questions they were chosen from (see the closing decision in `Phase/Phase5_Evaluation.md`)
+- On that set, compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain
 
 ---
 <p align="center">Made with AI-assisted development</p>

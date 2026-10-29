@@ -2,7 +2,7 @@
 
 > Run the scenarios automatically against Claude through the MCP server, record every tool call and answer as JSON, grade against the answer key, and compare the two tool sets.
 
-**Status**: ✅ Sonnet evaluation complete with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. Follow-ups #1–#4 are implemented as of 2026-10-27 and passed a live dev check on D04/D05/D09 and an Inspector form check on 2026-10-28; full D01–D10 dev runs, a new description/policy freeze and model reevaluation are pending, so these scores still describe v1. Follow-up #9 (prompt caching) is implemented and passed a live cache check on 2026-10-28. Follow-up #7 (value checks need a nearby label) and server build identification are implemented on 2026-10-28; #5, #6, #8 and #10 remain pending. The Opus 5.5 comparison moved out of this phase to plan §8 (post-development) and is deferred until after the Sonnet v2 evaluation.
+**Status**: ✅ Closed on v1 (2026-10-29). Sonnet evaluation with human review (2026-10-26): final accuracy coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1; this is the final Phase 5 result. Follow-ups #1–#4 (implemented 2026-10-27; live dev check on D04/D05/D09 and Inspector form check passed 2026-10-28), #7 with server build identification, and #9 (prompt caching) are implemented. The v2 reevaluation (#10) and #8 were dropped, and #5/#6 stay known limitations (see the closing decision below). The current descriptions/policy are therefore not frozen and the scores do not measure the follow-ups. The Opus 5.5 comparison moved to plan §8 (post-development) and is revisited with a new, unseen eval scenario set.
 **Prerequisites**: Phase 2 (frozen scenarios), Phase 4 (server with both tool sets) complete
 
 ---
@@ -237,7 +237,7 @@ All 60 eval records were reviewed by one person (`ㅇㅅㅇ`) in the review shee
 - **Coincidental matches:** the automatic value check also passed S12 fine's 21:00 per-minute output because "3개" fell within tolerance of 2.92. The review sheet's highlighting exposed both cases.
 - **Coarse vs fine:** differences in wording and level of detail come from per-response sampling and different tool contexts as well as tool design; N=1 cannot attribute style to the tool set.
 
-### Improvement candidates from human review (#1–#4 implemented; reevaluation pending)
+### Improvement candidates from human review (#1–#4 implemented; closed 2026-10-29 without reevaluation)
 
 These came from frozen eval results, so improvements belong to a new server version and must preserve the original evaluation records. Each needs a matching development scenario (D-set) first. Changes to descriptions or policy require a new freeze after dev runs; server-output changes also need a separately identified version and a rerun of both tool sets. The user authorized #3 on 2026-10-27 with `src/server/descriptions.ts` unchanged.
 
@@ -245,14 +245,14 @@ These came from frozen eval results, so improvements belong to a new server vers
 |---|---|---|---|---|
 | 1 | S12 | No guidance that per-planned-minute output comes from the hourly-pattern analysis | Implemented: name the returned metrics and fields in both tool sets; D05 extended | `src/server/descriptions.ts` |
 | 2 | S12 | The answer said the tool cannot compute the value | Implemented: check relevant tools before declaring a metric unavailable; distinguish missing data from unsupported metrics | `src/eval/config.ts` policy and server instructions share `METRIC_LOOKUP_HELP` |
-| 3 | S28 | Downtime results returned only `reasonCode`, so Korean terms varied | Implemented 2026-10-27: include `reasonLabel` in detail rows and reason totals; model reevaluation pending | `src/core/records.ts`, typed reason codes in `src/core/metrics.ts`; descriptions and formatter unchanged |
+| 3 | S28 | Downtime results returned only `reasonCode`, so Korean terms varied | Implemented 2026-10-27: include `reasonLabel` in detail rows and reason totals; not reevaluated (closed 2026-10-29) | `src/core/records.ts`, typed reason codes in `src/core/metrics.ts`; descriptions and formatter unchanged |
 | 4 | S29 | No rule for issue-draft severity | Implemented: draft severity is a proposal; the person explicitly chooses the final severity, including when accepting the proposal | plan §10, `src/core/issues.ts`, descriptions, Phase 7 form and app-only confirmation schema |
-| 5 | S14 | Ambiguous wording ("문제") interpreted without asking | Ask for the criterion as well as the period when the question is ambiguous | descriptions / policy |
-| 6 | S17 | Unsupported follow-up advice ("설비 로그") | Standard wording for missing data: confirm with the floor, check for missing input | descriptions / glossary |
+| 5 | S14 | Ambiguous wording ("문제") interpreted without asking | Not implemented; known limitation (2026-10-29). Candidate: ask for the criterion as well as the period when the question is ambiguous | descriptions / policy |
+| 6 | S17 | Unsupported follow-up advice ("설비 로그") | Not implemented; known limitation (2026-10-29). Candidate: standard wording for missing data (confirm with the floor, check for missing input) | descriptions / glossary |
 | 7 | S11, S12 | Value check satisfied by unrelated numbers (dates, other quantities) | Implemented 2026-10-28: numbers inside dates, times and identifiers never pass; a match whose nearest label in its clause is not the field's is `needs_review`. New `graderHash`; v1 records are not regraded in place | `src/eval/grade.ts` |
-| 8 | S09 | Level of detail differed between runs | Measure variance with `--repeat` before treating it as a tool-set effect | eval runs |
+| 8 | S09 | Level of detail differed between runs | Not done (2026-10-29): no repeated runs, so the difference stays unexplained and is not attributed to the tool set | eval runs |
 | 9 | External feedback (cost) | No prompt caching: every model call resends the tool definitions at full price (about 27k input tokens per question coarse, 54k fine) | Implemented 2026-10-28: one 5-minute `cache_control` breakpoint on the system prompt caches tool definitions and system prompt; token and cost figures are then not directly comparable with the N=1 baseline. Live check passed (D01/D02 coarse) | `src/eval/claude.ts` |
-| 10 | Run plan | N=1 cannot separate an improvement from run-to-run variation | Run v1 and v2 with `--repeat 3` on both tool sets and compare per-scenario pass counts (k/3); see the follow-up run plan below | eval runs |
+| 10 | Run plan | N=1 cannot separate an improvement from run-to-run variation | Not run (2026-10-29): the plan to run v1 and v2 with `--repeat 3` was dropped; see the closing decision below | eval runs |
 
 ### Follow-up #3 implementation (2026-10-27)
 
@@ -261,7 +261,7 @@ These came from frozen eval results, so improvements belong to a new server vers
 - D04 now requests Korean reason names for L3 on August 3–7 and checks the distinction between material shortage and minor stops. This is a new dev-scenario revision; existing dev records are preserved and no new model run has been performed.
 - Validation: `npm run check` passes (217 tests / 21 files, typecheck and build); `npm run scenarios:check` passes (30 eval + 10 dev). Core assertions cover breakdown, material shortage, minor stops and planned maintenance. The D04 MCP regression checks both tool sets and both response formats.
 - The #3-only implementation preserved `src/server/descriptions.ts` and its SHA-256: `e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2`. The subsequent #1/#2/#4 changes below change descriptions/policy. Frozen S scenarios, lock/freeze files, existing runs and human reviews remain unchanged.
-- The current freeze/comparison checks do not identify server implementation changes. An unchanged description hash therefore does not establish identical evaluation conditions. Record and check the server source version/hash before the next v1/v2 comparison; that runner enhancement is still pending. The published v1 accuracy does not measure this change.
+- At the time, the freeze/comparison checks did not identify server implementation changes, so an unchanged description hash did not establish identical evaluation conditions. Since 2026-10-28 records store `serverBuildHash` and comparisons pair only matching builds (see #7 below); v1 records predate it. The published v1 accuracy does not measure this change.
 
 ### Follow-ups #1, #2 and #4 implementation (2026-10-27)
 
@@ -310,7 +310,7 @@ No automatic check failed in the six records; the remaining checks are `needs_re
 - **Reuse:** every model call inside a scenario reads the prefix, and so does the next scenario with the same role, as long as it starts within 5 minutes. The system prompt holds the role line, so viewer and operator scenarios keep separate entries. Sonnet 5.5's 512-token minimum is far below the prefix (about 10k tokens on the first coarse call).
 - **No conversation-tail caching:** a simulation on the per-call input tokens of the 60 v1 eval records gave about $0.56 (coarse) and $0.87 (fine) of input cost per 30-scenario run with the system breakpoint, against $1.65 and $3.23 uncached. Automatic caching of the growing conversation added only $0.01–0.03 more savings, so it was left out. The simulation assumes the prefix stays warm; the live figure will differ.
 - **Cost estimate:** `CostBudget.charge()` now prices cache reads at 0.1× and cache writes at 1.25× the input rate. Writes are 5-minute entries only, because no request marks a 1-hour entry; models with cheaper reads (for example Opus 5.5 at 0.05×) are overestimated. Records without cache tokens, including all 2026-10-23 runs, get the same estimate as before. The pre-call budget check reserves counted input at the 1.25× write rate, because any counted token may be written to the cache; the limit stays an upper bound, at the cost of stopping slightly earlier than actual spend would require.
-- **Summary note:** `eval:summary` totals `inputTokens`, the uncached remainder only, so cached runs show far smaller input totals than v1. The summary format is unchanged; decide how to report cache tokens with the v1/v2 comparison report.
+- **Summary note:** `eval:summary` totals `inputTokens`, the uncached remainder only, so cached runs show far smaller input totals than v1. The summary format is unchanged; decide how to report cache tokens when a cached eval run is next reported.
 - **Validation:** `npm run check` passes (224 tests / 22 files). `tests/eval/loop.test.ts` adds three tests that failed against the previous code: the request body carries the cache breakpoint with unchanged text and tools, and cache usage is recorded (stubbed `fetch`, no API call); cache reads/writes are priced at 0.1×/1.25×; the pre-call reserve covers a cache write. A code review of the uncommitted change found the reserve gap (fixed) and a self-contradicting pricing sentence (fixed). Live check (user-run, `20261028T061321864Z-dev-coarse-f114fada`, D01/D02 coarse, both viewer): D01's first call wrote 10,566 tokens; D01's second call and both D02 calls read those 10,566 tokens, so the prefix was reused within and across scenarios. Cost $0.048 against $0.097 for the same scenarios on 2026-10-23 (−51%); D02 alone $0.013 against $0.051. No automatic failures; descriptions/policy hashes match the current ones. A repeat run started about 50 s later (`20261028T061409717Z-dev-coarse-104da59c`) read the cache on every call, including the first, and cost $0.028.
 
 ### Follow-up #7 and server build identification (2026-10-28)
@@ -324,7 +324,17 @@ Plan: [plan/02_phase5-grader-server-version.md](../plan/02_phase5-grader-server-
 - **Validation:** `npm run check` passes (234 tests / 22 files). New tests: masked numbers go to review; the nearest label wins and no label is borrowed from a neighbouring quantity; unit conflicts; case-insensitive and trailing-date field lookup; clause, parenthetical and comma-list handling; table headers (grader); the sheet highlights both the date and the count (sheet); pairing by server build, unchanged serialization without the field and rejection of a malformed hash (reporting); build-hash scope, CRLF and excluded type/map files (runner). A code review of the uncommitted change found label borrowing from neighbouring quantities, minutes/count unit mixing, case-sensitive and date-keyed field lookup, automatic failure for masked values, and hashing of type/map files; all were fixed. Not changed: dependency hashing (pinned lockfile), per-scenario rehashing cost (small next to model calls), and labels on a separate line or in tables without a leading pipe (left to review). Existing fixtures use the answer-key field `produced` (`downtimeCount` in the sheet fixture) instead of the unlabeled `count`; their assertions are unchanged except the sheet case, which documented the S11 false match and now asserts the corrected behaviour.
 - **Live check (2026-10-29, user-run):** the user confirmed in the review sheet that the "14" inside "9/14" (fine S11), "3개" (fine S12) and the expected numbers on the simple lookups are still highlighted. A D01 coarse dev run (`20261029T015854947Z-dev-coarse-75300c78`, $0.035) stored `serverBuildHash` `0389c87e05933a76d51ed5466606ebd046365661ca13a343e107344a4282a468`, equal to a fresh hash of the current `dist/`; the description hash is the current `a2b8d595…`. Both value checks (L5 09:30 produced and good) pass under the new grader, and the check results match the 2026-10-28 D01 record: no automatic failure, with the memo-instruction, worker-level and semantic checks left as `needs_review`. The change was committed as 4252d24; this run record is committed with the verification note.
 
-### Follow-up run plan (`--repeat 3`, not run)
+### Closing decision (2026-10-29): v1 is the final result
+
+The user decided to close Phase 5 on v1 and not to run the v2 reevaluation below.
+
+- **Why:** (1) the follow-ups were chosen from S01–S30 failures, so rerunning the same set would show whether known failures were fixed, not whether answers improved on unseen questions. A v2 score on that set would overstate the improvement. (2) Only the two to four failed scenarios could change, three repeats cannot separate a one- or two-scenario difference from noise, and 360 human reviews plus a v1 baseline checkout, stored regrade and v1/v2 comparison report cost far more than that answer is worth. (3) The intended behaviour of #1–#4 was already confirmed on D04/D05/D09 dev runs (2026-10-28).
+- **State left behind:** the published accuracy is v1. #1–#4, #7 and #9 are implemented; #5 and #6 are known limitations; #8 and #10 are not done. The current descriptions (`a2b8d595…`) and policy (`d4b1114f…`) are not frozen, and the preserved v1 freeze rejects them, so any later eval run first needs full D01–D10 dev runs on both tool sets and a refreeze with `--reason`. The v1 regrade with the new grader stays printed only (see #7 above).
+- **When a v2 evaluation becomes worthwhile:** with a new, unseen and frozen eval scenario set, where the follow-ups can be measured without the selection bias above; the Opus 5.5 comparison is revisited at the same point.
+
+### Follow-up run plan (`--repeat 3`, not run; dropped 2026-10-29)
+
+Kept for reference; not executed because of the closing decision above.
 
 Purpose: tell whether v2 answers better than v1, rather than a one-off difference. A v2-only repeat would still be compared against the N=1 v1 baseline, so v1 is repeated too.
 
@@ -361,11 +371,13 @@ Cost: four runs of 30 × 3 = 360 records. API cost is roughly 6× the N=1 pair (
 
 ## Development Notes
 
-### Opus 5.5 comparison (moved to plan §8, deferred 2026-10-26)
+### Opus 5.5 comparison (moved to plan §8, deferred 2026-10-26; revisit point changed 2026-10-29)
 
 Moved out of Phase 5 scope to plan §8 "post-development" alongside the paste-in comparison; Phase 5 completion does not depend on it. The decision and plan stay here for reference.
 
 **Decision (2026-10-26): deferred until the improved version (v2) has been evaluated on Sonnet.** Reasons: (1) the human-reviewed failures trace mainly to tool descriptions, missing labels/rules and answer handling, which a model change would mask rather than fix; (2) applying the improvement candidates changes the descriptions, so an Opus run now would have to be repeated; (3) with N=1 a model difference would be as hard to interpret as the 28 vs 26 tool-set difference. Revisit after the Sonnet v2 run (preferably with `--repeat`): if failures that look like model judgement (for example tool selection) remain, run Opus on coarse only; otherwise it may be skipped. Before any run, check the runner settings for Opus 5.5: thinking cannot be disabled and counts toward the 4,096-token output limit, the request timeout is 45 s, effort defaults to `medium`, and rates ($4 / $20 per million input/output tokens, twice Sonnet 5.5) must be passed explicitly.
+
+**Update (2026-10-29):** the Sonnet v2 evaluation was dropped (closing decision above), so the revisit point is now a new, unseen eval scenario set: evaluate Sonnet on the current version first, then decide on Opus (coarse only) by the same rule.
 
 The original plan is kept below for that later run.
 
@@ -416,6 +428,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 | 2026-10-28 | Live cache check passed on D01/D02 coarse: the 10,566-token prefix was written once and read by every later call, also across scenarios and a repeat run; cost about half of the 2026-10-23 run. |
 | 2026-10-28 | Implement #7 (numbers inside dates/times/identifiers go to review; a match passes only when its own label is nearest within its clause; a conflicting unit blocks it) and server build identification (`serverBuildHash` in records and fine/coarse pairing), per plan/02, including code-review fixes. Add 10 tests (234 total); dev regression and a printed v1 eval regrade recorded. Fix the #9 section's cost figures, which a shell substitution had turned into `/usr/bin/bash.048` and similar. Descriptions, policy, freeze, scenarios, records and reviews unchanged. |
 | 2026-10-29 | Record the #7 live check: review-sheet highlights confirmed by the user, and a D01 coarse dev run stored the server build hash matching the current `dist/` with value checks passing under the new grader. |
+| 2026-10-29 | Close Phase 5 on v1 (user decision): drop the v2 `--repeat 3` reevaluation and #8, keep #5/#6 as known limitations, record the reasons and the unfrozen current descriptions/policy, move the Opus revisit point to a new eval scenario set, and correct the stale note that server build identification was unimplemented. Documentation only; code, freeze, scenarios, records and reviews unchanged. |
 
 ---
 ---
@@ -424,7 +437,7 @@ Official references checked on 2026-10-23: [model lifecycle](https://platform.cl
 
 > MCP 서버를 연결한 Claude로 시나리오를 자동 실행하고, 도구 호출과 답변을 모두 JSON으로 남기고, 정답표와 대조해 채점하고, 두 도구 세트를 비교한다.
 
-**상태**: ✅ Sonnet 평가와 사람 검수 완료(2026-10-26): 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1. 후속 1~4번은 2026-10-27에 구현했고, 2026-10-28에 D04·D05·D09 실제 개발용 실행과 Inspector 폼 확인을 통과했다. D01~D10 전체 개발용 실행, 설명·정책 재동결, 모델 재평가는 대기 중이므로 이 점수는 기존 v1 결과다. 후속 9번(프롬프트 캐싱)은 2026-10-28에 구현했고 실제 캐시 확인을 통과했다. 후속 7번(값 검사에 주변 항목명 필요)과 서버 빌드 식별은 2026-10-28에 구현했다. 5·6·8·10번은 대기 상태다. Opus 5.5 비교는 이 Phase에서 빼서 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, Sonnet v2 평가 이후로 연기했다.
+**상태**: ✅ v1으로 마감(2026-10-29). Sonnet 평가와 사람 검수(2026-10-26)의 최종 정답률 coarse 28/30 (93.3%), fine 26/30 (86.7%), N=1이 Phase 5의 최종 결과다. 후속 1~4번(2026-10-27 구현, 2026-10-28 D04·D05·D09 실제 개발용 실행과 Inspector 폼 확인 통과), 7번과 서버 빌드 식별, 9번(프롬프트 캐싱)은 구현했다. v2 재평가(10번)와 8번은 하지 않기로 했고 5·6번은 알려진 한계로 남긴다(아래 마감 결정). 따라서 현재 설명·정책은 동결되지 않았고, 이 점수는 후속 수정의 효과를 측정한 것이 아니다. Opus 5.5 비교는 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼고, 새로 만든 평가용 질문 세트가 생길 때 다시 검토한다.
 **선행 조건**: Phase 2(시나리오 동결), Phase 4(두 도구 세트를 갖춘 서버) 완료
 
 ---
@@ -603,7 +616,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **우연 일치:** 자동 값 검사는 S12 fine의 21시 1분당 생산량도 통과시켰다. "3개"가 정답 2.92의 허용 오차 안에 들었기 때문이다. 검수 화면의 노란 표시로 두 사례를 찾았다.
 - **coarse와 fine의 차이:** 표현과 상세 수준의 차이는 도구 설계뿐 아니라 응답마다의 무작위 생성과 서로 다른 도구 문맥에서도 생긴다. N=1로는 어투 차이를 도구 구성 탓으로 볼 수 없다.
 
-### 사람 검수에서 나온 개선 후보 (1~4번 구현, 재평가 대기)
+### 사람 검수에서 나온 개선 후보 (1~4번 구현, 2026-10-29 재평가 없이 마감)
 
 동결된 평가 결과에서 나온 항목이므로 기존 평가 기록을 보존하고 새 서버 버전으로 개선한다. 각 항목은 먼저 대응하는 개발용 시나리오(D 세트)를 준비한다. 설명이나 정책을 바꾸면 개발용 실행 후 다시 동결하며, 서버 응답을 바꾸는 경우도 버전을 구분하고 두 도구 구성을 다시 실행해야 한다. 사용자는 2026-10-27에 `src/server/descriptions.ts`를 유지하는 조건으로 3번 구현을 승인했다.
 
@@ -611,14 +624,14 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 |---|---|---|---|---|
 | 1 | S12 | 1분당 생산량이 시간대 패턴 분석에서 나온다는 안내 없음 | 구현: 두 도구 구성의 설명에 지표와 반환 필드 명시, D05 확장 | `src/server/descriptions.ts` |
 | 2 | S12 | 도구가 계산하지 못한다고 잘못 답함 | 구현: 관련 도구를 확인한 뒤 제공 불가 여부를 판단하고, 미입력과 미지원 구분 | `src/eval/config.ts` 정책·서버 안내문이 `METRIC_LOOKUP_HELP` 공유 |
-| 3 | S28 | 비가동 결과가 `reasonCode`만 반환해 한국어 용어가 제각각이었음 | 2026-10-27 구현: 상세 기록과 사유별 집계에 `reasonLabel` 포함. 모델 재평가 대기 | `src/core/records.ts`, `src/core/metrics.ts` 사유 코드 타입. 설명·formatter 변경 없음 |
+| 3 | S28 | 비가동 결과가 `reasonCode`만 반환해 한국어 용어가 제각각이었음 | 2026-10-27 구현: 상세 기록과 사유별 집계에 `reasonLabel` 포함. 재평가하지 않음(2026-10-29 마감) | `src/core/records.ts`, `src/core/metrics.ts` 사유 코드 타입. 설명·formatter 변경 없음 |
 | 4 | S29 | 이슈 초안 심각도 규칙 없음 | 구현: 초안 심각도는 잠정 제안. 제안을 그대로 채택해도 사람이 최종 심각도를 명시적으로 선택 | 기획서 10장, `src/core/issues.ts`, 도구 설명, Phase 7 폼·화면 전용 확정 스키마 |
-| 5 | S14 | 모호한 표현("문제")을 묻지 않고 해석 | 모호한 질문은 기간과 함께 기준도 되묻기 | 도구 설명 / 정책 |
-| 6 | S17 | 근거 없는 후속 조치 제안("설비 로그") | 미입력 시 권할 조치를 정해진 표현으로 안내(현장 확인, 입력 누락 점검) | 도구 설명 / 용어집 |
+| 5 | S14 | 모호한 표현("문제")을 묻지 않고 해석 | 구현하지 않음, 알려진 한계(2026-10-29). 후보: 모호한 질문은 기간과 함께 기준도 되묻기 | 도구 설명 / 정책 |
+| 6 | S17 | 근거 없는 후속 조치 제안("설비 로그") | 구현하지 않음, 알려진 한계(2026-10-29). 후보: 미입력 시 권할 조치를 정해진 표현으로 안내(현장 확인, 입력 누락 점검) | 도구 설명 / 용어집 |
 | 7 | S11, S12 | 날짜·다른 수량의 숫자로 값 검사 통과 | 2026-10-28 구현: 날짜·시각·식별자 속 숫자로는 통과하지 않음, 같은 구에서 가장 가까운 항목명이 그 필드가 아니면 `needs_review`. 새 `graderHash`, v1 기록은 그대로 두고 재채점하지 않음 | `src/eval/grade.ts` |
-| 8 | S09 | 실행마다 상세 수준이 다름 | 도구 구성 효과로 보기 전에 `--repeat`로 변동 측정 | 평가 실행 |
+| 8 | S09 | 실행마다 상세 수준이 다름 | 하지 않음(2026-10-29): 반복 실행이 없으므로 차이의 원인은 미확인으로 두고 도구 구성 탓으로 보지 않음 | 평가 실행 |
 | 9 | 외부 피드백(비용) | 프롬프트 캐싱 미사용: 모델 호출마다 도구 정의를 정가로 다시 보냄(질문당 입력 coarse 약 2.7만, fine 약 5.4만 토큰) | 2026-10-28 구현: 시스템 프롬프트에 5분 `cache_control` 표시 하나를 달아 도구 정의·시스템 프롬프트를 캐시로 읽음. 이후 토큰·비용 수치는 기존 N=1 결과와 바로 비교하지 않음. 실제 확인 통과(D01·D02 coarse) | `src/eval/claude.ts` |
-| 10 | 실행 계획 | N=1로는 개선 효과와 실행 간 변동을 구분하지 못함 | v1과 v2를 두 도구 구성에서 `--repeat 3`으로 실행하고 시나리오별 통과 횟수(k/3)를 비교. 아래 후속 실행 계획 참고 | 평가 실행 |
+| 10 | 실행 계획 | N=1로는 개선 효과와 실행 간 변동을 구분하지 못함 | 실행하지 않음(2026-10-29): v1·v2를 `--repeat 3`으로 실행하는 계획을 접음. 아래 마감 결정 참고 | 평가 실행 |
 
 ### 후속 3번 구현 (2026-10-27)
 
@@ -627,7 +640,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - D04는 8월 3~7일 L3의 사유별 한국어 이름을 요청하고 자재 부족과 순간 정지의 구분을 확인하도록 확장했다. 개발용 시나리오의 새 리비전이며, 기존 개발용 기록은 보존하고 새 모델 실행은 하지 않았다.
 - 검증: `npm run check` 통과(테스트 217개/파일 21개, 타입 검사·빌드), `npm run scenarios:check` 통과(평가용 30개·개발용 10개). Core에서는 설비 고장·자재 부족·순간 정지·계획 점검을 검증했고, D04 MCP 회귀 테스트에서는 두 도구 구성과 두 응답 형식을 확인했다.
 - 3번만 구현했을 때는 `src/server/descriptions.ts`와 SHA-256을 유지했다: `e0766a30f16d44ad9b0b13a4b12a58c5be5c2530e51850f4fd24241a4a5f07a2`. 이후 아래의 1·2·4번 작업에서 설명·정책을 변경했다. 동결된 S 시나리오, 잠금·동결 파일, 기존 실행과 사람 검수 기록은 유지한다.
-- 현재 동결·비교 검사는 서버 구현 변경을 식별하지 않는다. 설명 해시가 같다는 이유만으로 평가 조건이 같다고 볼 수 없다. 다음 v1/v2 비교 전에 서버 소스 버전·해시를 기록하고 검사해야 하며, 이 실행기 보완은 아직 미구현이다. 공개된 v1 정답률은 이번 변경의 효과를 측정한 결과가 아니다.
+- 당시의 동결·비교 검사는 서버 구현 변경을 식별하지 않아서, 설명 해시가 같다는 이유만으로 평가 조건이 같다고 볼 수 없었다. 2026-10-28부터는 기록에 `serverBuildHash`를 저장하고 빌드가 같은 실행만 비교한다(아래 7번). v1 기록은 그 전에 만들어졌다. 공개된 v1 정답률은 이번 변경의 효과를 측정한 결과가 아니다.
 
 ### 후속 1·2·4번 구현 (2026-10-27)
 
@@ -676,7 +689,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **재사용:** 한 시나리오 안의 모든 모델 호출이 이 앞부분을 캐시에서 읽는다. 같은 역할의 다음 시나리오도 5분 안에 시작하면 캐시를 읽는다. 시스템 프롬프트에 역할 줄이 있어서 viewer와 operator 시나리오는 캐시를 따로 쓴다. Sonnet 5.5의 최소 캐시 크기 512토큰은 앞부분(coarse 첫 호출 기준 약 1만 토큰)보다 훨씬 작다.
 - **대화 뒷부분은 캐시하지 않음:** v1 평가 기록 60건의 호출별 입력 토큰으로 계산하면, 30문항 1회의 입력 비용은 캐시가 없을 때 coarse $1.65, fine $3.23이고, 시스템 표시를 두면 약 $0.56, $0.87이다. 늘어나는 대화를 자동 캐싱하면 $0.01~0.03만 더 줄어서 넣지 않았다. 이 계산은 캐시가 계속 유지된다고 가정했으므로 실제 값은 다를 수 있다.
 - **비용 추정:** `CostBudget.charge()`는 캐시 읽기를 입력 단가의 0.1배, 쓰기를 1.25배로 계산한다. 요청이 1시간 캐시를 표시하지 않으므로 쓰기는 모두 5분 캐시다. 읽기가 더 싼 모델(예: Opus 5.5의 0.05배)은 실제보다 높게 추정된다. 캐시 토큰이 없는 기록은 2026-10-23 실행을 포함해 추정값이 전과 같다. 호출 전 비용 한도 검사는 세어 둔 입력을 쓰기 단가인 1.25배로 잡는다. 어떤 토큰이든 캐시에 쓰일 수 있기 때문이다. 그래서 한도는 계속 상한으로 지켜지고, 대신 실제 지출보다 조금 일찍 멈출 수 있다.
-- **요약 주의:** `eval:summary`는 캐시를 뺀 나머지인 `inputTokens`만 합산하므로, 캐시를 쓴 실행은 입력 합계가 v1보다 훨씬 작게 보인다. 요약 형식은 바꾸지 않았고, 캐시 토큰을 어떻게 보고할지는 v1·v2 비교 보고서를 만들 때 정한다.
+- **요약 주의:** `eval:summary`는 캐시를 뺀 나머지인 `inputTokens`만 합산하므로, 캐시를 쓴 실행은 입력 합계가 v1보다 훨씬 작게 보인다. 요약 형식은 바꾸지 않았고, 캐시 토큰을 어떻게 보고할지는 다음에 캐시를 쓴 평가 실행을 보고할 때 정한다.
 - **검증:** `npm run check` 통과(테스트 224개/파일 22개). `tests/eval/loop.test.ts`에 예전 코드에서 실패하던 테스트 3개를 추가했다. 요청 본문에 문장·도구 변경 없이 캐시 표시가 들어가고 캐시 사용량이 기록되는지(`fetch`를 가짜로 바꿔 API 호출 없음), 캐시 읽기·쓰기를 0.1배·1.25배로 계산하는지, 호출 전 한도 검사가 캐시 쓰기 비용까지 잡는지 확인한다. 커밋 전 변경분 코드 리뷰에서 한도 검사의 빈틈과 서로 어긋나는 요금 문장을 찾아 고쳤다. 실제 확인(사용자 실행, `20261028T061321864Z-dev-coarse-f114fada`, D01·D02 coarse, 둘 다 viewer): D01 첫 호출이 10,566토큰을 캐시에 썼고, D01 두 번째 호출과 D02의 두 호출이 모두 그 10,566토큰을 읽었다. 한 시나리오 안에서도, 다음 시나리오로 넘어가서도 재사용됐다. 비용은 $0.048로 2026-10-23 같은 시나리오의 $0.097보다 51% 적다(D02만 보면 $0.051 → $0.013). 자동 검사 실패는 없고 설명·정책 해시는 현재 값과 같다. 약 50초 뒤 시작한 반복 실행(`20261028T061409717Z-dev-coarse-104da59c`)은 첫 호출을 포함한 모든 호출이 캐시를 읽었고 비용은 $0.028이었다.
 
 ### 후속 7번과 서버 빌드 식별 (2026-10-28)
@@ -690,7 +703,17 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 - **검증:** `npm run check` 통과(테스트 234개/파일 22개). 새 테스트는 가린 숫자의 검수 넘김, 가장 가까운 항목명 우선과 이웃 수량 항목명 차용 방지, 단위 충돌, 대소문자·날짜 키 필드 찾기, 구·괄호·쉼표 나열 처리, 표 머리글(채점기), 검수 화면의 날짜·횟수 표시(검수 화면), 서버 빌드별 짝짓기·필드가 없을 때 직렬화 불변·잘못된 해시 거부(보고), 빌드 해시 범위·CRLF·형식/맵 파일 제외(실행기)를 확인한다. 커밋 전 변경분 코드 리뷰에서 이웃 수량 항목명 차용, 분·횟수 단위 혼동, 대소문자·날짜 키 때문에 빠지는 필드 규칙, 가린 값의 자동 실패, 형식/맵 파일 해시를 찾아 고쳤다. 의존성 해시(잠금 파일로 고정), 시나리오마다 다시 해시하는 비용(모델 호출에 비해 작음), 다른 줄의 항목명이나 앞 `|`가 없는 표(검수로 남김)는 바꾸지 않았다. 기존 테스트 입력은 항목명 규칙이 없는 `count` 대신 정답표 필드 `produced`(검수 화면 테스트는 `downtimeCount`)를 쓴다. 기대값은 그대로이고, S11 오탐을 기록하던 검수 화면 테스트만 고친 동작을 확인하도록 바꿨다.
 - **실제 확인 (2026-10-29, 사용자 실행):** 사용자가 검수 화면에서 "9/14" 속 14(fine S11), "3개"(fine S12), 단순 조회의 정답 숫자가 여전히 노란색으로 표시되는 것을 확인했다. D01 coarse 개발용 실행(`20261029T015854947Z-dev-coarse-75300c78`, $0.035)은 `serverBuildHash` `0389c87e05933a76d51ed5466606ebd046365661ca13a343e107344a4282a468`을 저장했고, 이는 현재 `dist/`로 다시 계산한 값과 같다. 설명 해시는 현재 값 `a2b8d595…`와 같다. 값 검사 2개(L5 09:30 생산량·양품)는 새 채점기에서 통과했고, 검사 결과는 2026-10-28 D01 기록과 같다. 자동 실패는 없고, 메모 지시·작업자 단위·의미 검사는 `needs_review`로 남는다. 변경은 4252d24로 커밋했고, 이 실행 기록은 확인 기록과 함께 커밋했다.
 
-### 후속 실행 계획 (`--repeat 3`, 미실행)
+### 마감 결정 (2026-10-29): v1을 최종 결과로 한다
+
+사용자가 Phase 5를 v1으로 마감하고 아래 v2 재평가는 하지 않기로 결정했다.
+
+- **이유:** (1) 후속 항목은 S01~S30의 실패를 보고 골랐다. 같은 세트로 다시 실행하면 "처음 보는 질문에 더 잘 답하는가"가 아니라 "알려진 실패를 고쳤는가"만 보인다. 그 세트의 v2 점수는 개선 효과를 부풀린다. (2) 바뀔 수 있는 것은 실패했던 2~4개 시나리오뿐이다. 3회 반복으로는 1~2문항 차이를 우연과 구분하지 못한다. 그런데 사람 검수 360건, v1 기준점 체크아웃, 재채점 저장, v1·v2 비교 보고서가 필요해 얻는 정보에 비해 부담이 너무 크다. (3) 1~4번이 의도대로 동작하는지는 D04·D05·D09 개발용 실행(2026-10-28)에서 이미 확인했다.
+- **남는 상태:** 공개 정답률은 v1이다. 1~4번, 7번, 9번은 구현했고 5·6번은 알려진 한계, 8·10번은 하지 않았다. 현재 설명(`a2b8d595…`)과 정책(`d4b1114f…`)은 동결되지 않았고, 보존한 v1 동결은 이 조건을 거절한다. 따라서 나중에 평가를 실행하려면 먼저 두 도구 구성의 D01~D10 전체 개발용 실행과 `--reason`을 남긴 재동결이 필요하다. 새 채점기로 한 v1 재채점은 출력만 한 상태로 둔다(위 7번).
+- **v2 평가가 의미 있어지는 조건:** 처음 보는 평가용 질문 세트를 새로 만들어 동결했을 때다. 그때는 위의 선택 편향 없이 후속 수정의 효과를 잴 수 있다. Opus 5.5 비교도 이때 다시 검토한다.
+
+### 후속 실행 계획 (`--repeat 3`, 미실행, 2026-10-29 접음)
+
+참고용으로 남긴다. 위 마감 결정에 따라 실행하지 않는다.
 
 목적: v2가 v1보다 실제로 더 나은지, 한 번의 우연인지 구분한다. v2만 반복하면 비교 대상이 여전히 N=1인 v1이므로 v1도 반복한다.
 
@@ -727,11 +750,13 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 
 ## 개발 시 주의사항
 
-### Opus 5.5 추가 비교 계획 (기획서 8장으로 이동, 2026-10-26 연기)
+### Opus 5.5 추가 비교 계획 (기획서 8장으로 이동, 2026-10-26 연기, 2026-10-29 재검토 시점 변경)
 
 붙여넣기 방식 비교와 함께 기획서 8장 "개발 완료 후 별도 진행"으로 옮겼다. Phase 5 완료는 이 실험과 무관하다. 결정 내용과 계획은 참고용으로 여기에 남긴다.
 
 **결정(2026-10-26): 개선 버전(v2)을 Sonnet으로 평가한 뒤로 연기한다.** 이유는 세 가지다. (1) 사람 검수에서 나온 실패는 주로 도구 설명, 빠진 용어·규칙, 답변 처리 방식에서 비롯됐다. 모델을 바꾸면 이 문제가 고쳐지는 게 아니라 가려진다. (2) 개선 후보를 반영하면 도구 설명이 바뀌므로 지금 Opus를 돌리면 다시 돌려야 한다. (3) N=1로는 모델 차이도 도구 구성 차이(28 대 26)처럼 해석하기 어렵다. Sonnet v2 실행(가능하면 `--repeat` 사용) 뒤 다시 검토한다. 도구 선택처럼 모델 판단력 문제로 보이는 실패가 남으면 coarse만 Opus로 실행하고, 남지 않으면 생략할 수 있다. 실행 전에는 Opus 5.5용 실행기 설정을 확인한다. 생각(thinking)은 끌 수 없고 출력 한도 4,096 토큰에 포함되며, 요청 제한 시간은 45초이고, effort 기본값은 `medium`이다. 단가(백만 토큰당 입력 $4 / 출력 $20, Sonnet 5.5의 2배)는 직접 지정해야 한다.
+
+**변경(2026-10-29):** Sonnet v2 평가를 하지 않기로 했으므로(위 마감 결정) 재검토 시점을 새로 만든 평가용 질문 세트로 바꾼다. 그 세트로 현재 버전의 Sonnet을 먼저 평가하고, 같은 기준으로 Opus 실행 여부(coarse만)를 정한다.
 
 아래의 기존 계획은 나중 실행을 위해 그대로 둔다.
 
@@ -782,3 +807,4 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 2026-10-28 | D01·D02 coarse로 실제 캐시 확인 통과: 10,566토큰 앞부분을 한 번 쓰고 이후 호출이 모두 읽었다. 다음 시나리오와 반복 실행에서도 재사용됐고 비용은 2026-10-23 실행의 약 절반이다. |
 | 2026-10-28 | plan/02에 따라 7번(날짜·시각·식별자 속 숫자는 검수로 넘김, 같은 구에서 가장 가까운 항목명이 그 필드일 때만 통과, 다른 수량의 단위는 통과를 막음)과 서버 빌드 식별(기록과 fine/coarse 짝 조건에 `serverBuildHash`) 구현, 코드 리뷰 반영 포함. 테스트 10개 추가(전체 234개), 개발용 회귀와 v1 평가 재채점 출력 결과 기록. 9번 절의 비용 수치가 셸 치환으로 `/usr/bin/bash.048` 등으로 바뀌어 있던 것을 바로잡았다. 설명·정책·동결·시나리오·기록·검수 파일은 그대로다. |
 | 2026-10-29 | 7번 실제 확인 기록: 사용자가 검수 화면의 노란 표시를 확인했고, D01 coarse 개발용 실행이 현재 `dist/`와 같은 서버 빌드 해시를 저장했으며 새 채점기에서 값 검사가 통과했다. |
+| 2026-10-29 | Phase 5를 v1으로 마감(사용자 결정): v2 `--repeat 3` 재평가와 8번을 하지 않고 5·6번은 알려진 한계로 남긴다. 이유와 동결되지 않은 현재 설명·정책 상태를 기록하고, Opus 재검토 시점을 새 평가용 질문 세트로 옮기고, 서버 빌드 식별이 미구현이라던 오래된 문장을 바로잡았다. 문서만 바꿨고 코드·동결·시나리오·기록·검수 파일은 그대로다. |

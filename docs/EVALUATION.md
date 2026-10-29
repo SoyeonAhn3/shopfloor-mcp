@@ -97,13 +97,9 @@ Descriptions were tuned only on dev scenarios D01–D10 and then frozen; eval re
 
 ## 7. 이후 계획 / Follow-up
 
-사람 검수에서 나온 개선 후보와 `--repeat 3` 재평가 계획은 [Phase 5의 후속 항목](../Phase/Phase5_Evaluation.md)에 있습니다. 개선은 새 서버 버전으로 반영하고, 위 결과(v1)의 원본 기록은 그대로 둡니다. 재평가 결과가 나오면 이 문서에 v1과 v2를 나란히 추가합니다.
+위 결과(v1)가 Phase 5의 최종 결과입니다(2026-10-29 마감). 사람 검수에서 나온 개선 후보 중 1~4번(시간대 지표 설명, 관련 도구 확인 정책, 비가동 한국어 이름, 사람의 최종 심각도 선택)은 새 서버 버전에 반영했고 개발용 시나리오로만 확인했습니다. 위 정답률은 개선 후의 점수가 아닙니다. 개선 항목을 이 30개 질문의 실패에서 골랐기 때문에, 같은 질문으로 다시 재면 효과가 부풀려집니다. 그래서 v2 재평가는 하지 않았습니다. 다음 평가는 처음 보는 질문 세트를 새로 만든 뒤에 합니다. 결정 이유와 남은 항목은 [Phase 5의 마감 결정](../Phase/Phase5_Evaluation.md)에 있습니다.
 
-Improvement candidates and the `--repeat 3` re-run plan are tracked in [Phase 5](../Phase/Phase5_Evaluation.md). Improvements ship as a new server version; the v1 records above stay unchanged. Re-run results will be added here next to v1.
-
-2026-10-27 현재 1~4번을 구현했습니다. 시간대 지표 설명, 관련 도구 확인 정책, 비가동 한국어 이름, 사람의 최종 심각도 선택을 반영했습니다. 설명·정책 해시는 변경됐으며 새 개발용 실행·재동결·모델 재평가는 아직 하지 않았습니다. 위 정답률은 개선 후의 점수가 아닙니다.
-
-As of 2026-10-27, #1–#4 are implemented: hourly-metric descriptions, relevant-tool checks, Korean downtime labels and explicit human severity selection. Description/policy hashes changed; new dev runs, refreeze and model reevaluation remain pending. The accuracy above does not measure these changes.
+The v1 result above is the final Phase 5 result (closed 2026-10-29). Of the improvement candidates from human review, #1–#4 (hourly-metric descriptions, relevant-tool checks, Korean downtime labels, explicit human severity selection) ship in a new server version and were checked on dev scenarios only; the accuracy above does not measure them. The candidates were chosen from these 30 questions' failures, so rerunning the same questions would overstate their effect, and the v2 reevaluation was dropped. Further evaluation waits for a new, unseen scenario set. Reasons and remaining items are in the [Phase 5 closing decision](../Phase/Phase5_Evaluation.md).
 
 ## 8. 직접 확인하기 / Check it yourself
 
