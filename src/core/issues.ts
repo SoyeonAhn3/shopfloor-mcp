@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { LINE_IDS } from '../shared/codes.js';
 import { audited, type CallContext } from './audit.js';
-import { dateSchema, DeniedError, protectOutput, requireOperator } from './guards.js';
+import { dateSchema, DeniedError, InputError, protectOutput, requireOperator } from './guards.js';
 import type { StoredDraft } from './db.js';
 
 export const DRAFT_TTL_MS = 10 * 60 * 1000;
@@ -27,17 +27,17 @@ export function createHumanContext(ctx: Omit<CallContext, 'actor'>): HumanContex
   humanContexts.add(context); return context;
 }
 function validateEvidence(ctx: CallContext, input: DraftInput): void {
-  if (!ctx.writer.isProductionDate(input.relatedDate)) throw new RangeError('유효한 생산일이 필요합니다.');
+  if (!ctx.writer.isProductionDate(input.relatedDate)) throw new InputError('유효한 생산일이 필요합니다.');
   for (const id of input.evidenceRefs) {
     const row = ctx.writer.getAudit(id);
     if (!row || row.session_id !== ctx.sessionId || !['ok', 'status'].includes(row.outcome)
       || row.tool_name === 'preview_issue' || row.tool_name === 'confirm_issue' || row.data_as_of !== ctx.clocks.reference()) {
-      throw new RangeError('현재 세션의 조회 근거가 필요합니다.');
+      throw new InputError('현재 세션의 조회 근거가 필요합니다.', 'invalid_evidence');
     }
     const result = JSON.parse(row.result_summary) as { scopes?: { from: string; to: string; lineIds?: string[]; excludeDates: string[] }[] };
     if (!result.scopes?.some(scope => input.relatedDate >= scope.from && input.relatedDate <= scope.to
       && scope.lineIds?.includes(input.lineId) && !scope.excludeDates.includes(input.relatedDate))) {
-      throw new RangeError('조회 근거의 라인과 생산일을 확인해 주세요.');
+      throw new InputError('조회 근거의 라인과 생산일을 확인해 주세요.', 'invalid_evidence');
     }
   }
 }
@@ -67,7 +67,7 @@ export function confirmDraft(ctx: HumanContext, draftId: string, edits: DraftEdi
     if (!humanContexts.has(ctx) || ctx.actor !== 'human') throw new DeniedError('사람의 확정 경로만 사용할 수 있습니다.');
     requireOperator(ctx.role);
     z.string().uuid().parse(draftId.slice(2));
-    if (!draftId.startsWith('P-')) throw new RangeError('초안 번호를 확인해 주세요.');
+    if (!draftId.startsWith('P-')) throw new InputError('초안 번호를 확인해 주세요.');
     const changes = editsSchema.parse(edits), draft = ctx.writer.getDraft(draftId);
     if (!draft) return { ok: false as const, reason: 'not_found', message: '초안을 찾을 수 없습니다.' };
     if (draft.session_id !== ctx.sessionId) throw new DeniedError('다른 세션의 초안은 확정할 수 없습니다.');

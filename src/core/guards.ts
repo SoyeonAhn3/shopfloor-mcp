@@ -7,6 +7,10 @@ export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value =
   try { toMinute(value); return true; } catch { return false; }
 }, '올바른 YYYY-MM-DD 날짜가 필요합니다.');
 export class DeniedError extends Error {}
+// Input problems whose message is written for the caller. Built-in RangeErrors stay generic.
+export class InputError extends Error {
+  constructor(message: string, readonly reason: 'invalid_input' | 'invalid_evidence' = 'invalid_input') { super(message); }
+}
 export function requireOperator(role: Role): void {
   if (role !== 'operator') throw new DeniedError('조회 전용 역할은 초안을 생성하거나 확정할 수 없습니다.');
 }

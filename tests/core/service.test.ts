@@ -36,6 +36,10 @@ describe('validated and audited public core operations', () => {
     expect(core.tools.getProduction(input)).toMatchObject({ ok: false, reason: 'invalid_input', evidenceId: expect.stringMatching(/^Q-/) });
     expect(count()).toBe(before + 1);
   });
+  it('returns the specific reason when a period resolves outside the supported calendar', () => {
+    expect(core.tools.getProduction({ period: { kind: 'month', year: 9999, month: 12 } }))
+      .toMatchObject({ ok: false, reason: 'invalid_input', message: '지원하는 날짜 범위를 벗어났습니다.' });
+  });
   it('audits six distinguishable exceptional data states and gives no false success on query errors', () => {
     const cases = [
       [{ period: { kind: 'this_month' } }, 'out_of_range'],

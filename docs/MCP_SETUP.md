@@ -82,8 +82,8 @@ This demo uses the compiled server over stdio from a different working directory
 
 ## 5. 검증 범위 / Validation scope
 
-- `npm run check`: 타입 검사 + 전체 234개 테스트(파일 22개) + 빌드.
-- `npx vitest run tests/server`: MCP 테스트 61개(Phase 4 43개, Phase 7 15개, Phase 5 후속 3개). 도구 선택별 동일 결과, 여러 기간, 상태 구분, 권한, 정보 보호, 입력 거절, 실행용 DB 보호, 실제 stdio 연결, MCP Apps 감지와 확정 폼 연결, 폼 전용 확정(공개 범위, 이슈 1건과 감사 기록, 두 번 클릭·만료·중복 거절), 비가동 사유 한국어 이름, 최종 심각도 선택 필수.
+- `npm run check`: 타입 검사 + 전체 237개 테스트(파일 22개) + 빌드.
+- `npx vitest run tests/server`: MCP 테스트 62개(Phase 4 43개, Phase 7 15개, Phase 5 후속 3개, 근거 오류 안내 1개). 도구 선택별 동일 결과, 여러 기간, 상태 구분, 권한, 정보 보호, 입력 거절, 실행용 DB 보호, 실제 stdio 연결, MCP Apps 감지와 확정 폼 연결, 폼 전용 확정(공개 범위, 이슈 1건과 감사 기록, 두 번 클릭·만료·중복 거절), 비가동 사유 한국어 이름, 최종 심각도 선택 필수, 근거 불일치의 구체적 이유와 재조회 안내.
 - `npm run scenarios:check`: 동결 시나리오 무결성. 동결 생성본이 없는 새 체크아웃에서는 Phase 2 안내를 따릅니다.
 - 리소스와 프롬프트는 클라이언트 지원과 사용자의 선택에 따라 노출됩니다. 등록만으로 매 응답에 자동 삽입되지 않습니다.
 - 자동 프로토콜 검증과 빌드 데모는 통과했습니다. Claude Desktop 화면에서의 표시·자연어 대화는 수동 확인 대상입니다. 실제 모델 평가는 Phase 5([eval/summary.md](../eval/summary.md))에 있습니다. Phase 7 확정 폼은 MCP Inspector에서 폼 확정 → 이슈 1건 등록 → 재확정 거절까지 확인했습니다(방법은 [Phase 7](../Phase/Phase7_ConfirmationAndDemo.md)). `confirm_issue`는 화면 전용이라 Claude의 도구 목록에 없고, MCP Apps를 선언하지 않은 클라이언트에는 등록되지 않습니다. Claude 데스크톱 확인은 남아 있습니다.

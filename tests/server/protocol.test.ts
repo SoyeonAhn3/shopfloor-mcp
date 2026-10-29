@@ -224,4 +224,15 @@ describe('resources, prompt templates, permissions and reference data', () => {
     expect((await call(fine, 'preview_issue', { ...args, evidenceRefs: [own.body.evidenceId] })).result.isError).toBe(false);
     expect(count('issues')).toBe(issues);
   });
+  it('explains an evidence scope mismatch instead of pointing at the input format, on both tool sets', async () => {
+    for (const [peer, tool] of [[coarse, 'query_production'], [fine, 'get_production']] as const) {
+      const q = await call(peer, tool, { ...(tool === 'query_production' ? { mode: 'production' } : {}), period, lineIds: ['L1'] });
+      const mismatch = await call(peer, 'preview_issue', { lineId: 'L1', relatedDate: '2026-09-29', title: '근거 날짜 불일치',
+        severity: 'medium', description: '관측 결과 확인', evidenceRefs: [q.body.evidenceId] });
+      expect(mismatch.result.isError).toBe(true);
+      expect(mismatch.body).toMatchObject({ reason: 'invalid_evidence', summary: '조회 근거의 라인과 생산일을 확인해 주세요.' });
+      expect(mismatch.body.recovery).toContain('먼저 조회');
+      expect(mismatch.body.recovery).not.toContain('스키마');
+    }
+  });
 });

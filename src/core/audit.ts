@@ -2,7 +2,7 @@ import { ZodError } from 'zod';
 import type { AuditInput, RuntimeWriter } from './db.js';
 import type { Clocks } from './clock.js';
 import type { Evidence } from './evidence.js';
-import { DeniedError, protectOutput, type Role } from './guards.js';
+import { DeniedError, InputError, protectOutput, type Role } from './guards.js';
 
 export interface CallContext {
   sessionId: string; actor: 'claude' | 'human'; userName: string; role: Role;
@@ -12,6 +12,7 @@ export type CoreFailure = { ok: false; status?: 'query_failed'; reason?: string;
 export type Audited<T> = (T | CoreFailure) & Evidence;
 function failure(error: unknown): CoreFailure {
   if (error instanceof DeniedError) return { ok: false, reason: 'denied', message: error.message };
+  if (error instanceof InputError) return { ok: false, reason: error.reason, message: error.message };
   if (error instanceof ZodError || error instanceof RangeError) return { ok: false, reason: 'invalid_input',
     message: '입력 형식이나 범위를 확인해 주세요. 라인은 L1~L6, 날짜는 실제 YYYY-MM-DD이며 기간과 집계 조건만 지원합니다.' };
   return { ok: false, status: 'query_failed', message: '조회 또는 저장에 실패했습니다. 데이터 연결과 서버 기록을 확인한 뒤 다시 시도해 주세요.' };

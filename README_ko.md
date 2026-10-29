@@ -174,7 +174,7 @@ npm run mcp:demo -- --db data/production.db
 ## 테스트
 
 ```sh
-npm run check                 # typecheck + 234 tests in 22 files + build
+npm run check                 # typecheck + 237 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -195,7 +195,7 @@ shopfloor-mcp/
 │   ├── core/              # 기간, 집계, 분석, 감사 기록, 이슈 초안 보호
 │   ├── server/            # MCP 도구(coarse/fine), 리소스, 프롬프트, stdio, MCP Apps 폼(ui/)
 │   └── eval/              # 평가 실행기, 채점, 동결 검사, 사람 검수
-├── tests/                 # 파일 22개, 테스트 234개
+├── tests/                 # 파일 22개, 테스트 237개
 ├── eval/
 │   ├── scenarios/         # 평가용 30개·개발용 10개 시나리오, 잠금, 질문 목록
 │   ├── runs/              # 평가 실행 기록

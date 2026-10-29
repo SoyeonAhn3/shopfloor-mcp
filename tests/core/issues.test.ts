@@ -67,15 +67,17 @@ describe('draft/confirm permissions and transactions', () => {
     expect(issueCount()).toBe(0);
   });
   it('requires real same-session evidence for the requested line and included production date', () => {
-    for (const invalid of [
-      { ...input, evidenceRefs: ['Q-999999'] }, { ...input, lineId: 'L3' },
-      { ...input, relatedDate: '2026-07-16' }, { ...input, relatedDate: '2026-07-18' },
-    ]) expect(createDraft(tool, invalid)).toMatchObject({ reason: 'invalid_input' });
-    expect(createDraft({ ...tool, sessionId: 'other' }, input)).toMatchObject({ reason: 'invalid_input' });
+    const session = { reason: 'invalid_evidence', message: '현재 세션의 조회 근거가 필요합니다.' };
+    const scope = { reason: 'invalid_evidence', message: '조회 근거의 라인과 생산일을 확인해 주세요.' };
+    expect(createDraft(tool, { ...input, evidenceRefs: ['Q-999999'] })).toMatchObject(session);
+    expect(createDraft({ ...tool, sessionId: 'other' }, input)).toMatchObject(session);
+    expect(createDraft(tool, { ...input, lineId: 'L3' })).toMatchObject(scope);
+    expect(createDraft(tool, { ...input, relatedDate: '2026-07-16' })).toMatchObject(scope);
+    expect(createDraft(tool, { ...input, relatedDate: '2026-07-18' })).toMatchObject({ reason: 'invalid_input', message: '유효한 생산일이 필요합니다.' });
     const excluded = success(core.tools.getProduction({ lineIds: ['L2'], period: { kind: 'range', from: '2026-07-13', to: '2026-07-17' }, excludeDates: [input.relatedDate] }));
-    expect(createDraft(tool, { ...input, evidenceRefs: [excluded.evidenceId] })).toMatchObject({ reason: 'invalid_input' });
+    expect(createDraft(tool, { ...input, evidenceRefs: [excluded.evidenceId] })).toMatchObject(scope);
     const d = draft();
-    expect(confirmDraft(human, d.draftId, { lineId: 'L3' })).toMatchObject({ reason: 'invalid_input' });
+    expect(confirmDraft(human, d.draftId, { lineId: 'L3' })).toMatchObject(scope);
     expect(writer.getDraft(d.draftId)?.status).toBe('pending');
   });
   it('normalizes duplicate titles for 24 hours and permits a later separately reviewed issue', () => {
@@ -95,7 +97,13 @@ describe('draft/confirm permissions and transactions', () => {
     expect(createDraft(tool, { ...input, evidenceRefs: [comparison.evidenceId] }).ok).toBe(true);
     const excluded = success(core.tools.getProduction({ lineIds: ['L2'], period: { kind: 'date', date: '2026-07-16' },
       compareTo: { kind: 'range', from: '2026-07-13', to: '2026-07-15' }, excludeDates: [input.relatedDate] }));
-    expect(createDraft(tool, { ...input, evidenceRefs: [excluded.evidenceId] })).toMatchObject({ reason: 'invalid_input' });
+    expect(createDraft(tool, { ...input, evidenceRefs: [excluded.evidenceId] })).toMatchObject({ reason: 'invalid_evidence' });
+  });
+  it('keeps the generic text for runtime range errors so internal messages never reach the response', () => {
+    const result = audited(tool, 'test_query', {}, () => { throw new RangeError('Invalid time value'); });
+    expect(result).toMatchObject({ ok: false, reason: 'invalid_input' });
+    expect(JSON.stringify(result)).not.toContain('Invalid time value');
+    expect(confirmDraft(human, 'Q-00000000-0000-4000-8000-000000000000')).toMatchObject({ reason: 'invalid_input', message: '초안 번호를 확인해 주세요.' });
   });
   it.each(['insertIssue', 'updateDraft', 'insertAudit'] as const)('rolls back all writes if %s fails, then logs the failure outside the transaction', stage => {
     const d = draft();

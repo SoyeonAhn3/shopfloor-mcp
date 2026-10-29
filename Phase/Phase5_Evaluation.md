@@ -283,7 +283,7 @@ These came from frozen eval results, so improvements belong to a new server vers
 | Keep the proposal (보통) | `심각도 확인: 보통 · 수정 없음`; issue registered as medium; audit Q-0004 `actor: human`, `edits: {"severity":"medium"}` |
 | Change the proposal (보통 → 높음, new draft and title) | `수정: 심각도 보통 → 높음`; issue registered as high; audit Q-0006 `human_changes` medium → high |
 
-A `preview_issue` call whose `relatedDate` (2026-09-04) did not match the evidence date was rejected with the generic `invalid_input` text about line and date formats (Q-0002). The specific core reason (조회 근거의 라인과 생산일을 확인해 주세요) is lost because `failure()` in `src/core/audit.ts` maps every `RangeError` to that text. Changing it alters server output and therefore evaluation conditions; it is pending a user decision.
+A `preview_issue` call whose `relatedDate` (2026-09-04) did not match the evidence date was rejected with the generic `invalid_input` text about line and date formats (Q-0002). The specific core reason (조회 근거의 라인과 생산일을 확인해 주세요) is lost because `failure()` in `src/core/audit.ts` maps every `RangeError` to that text. Changing it alters server output and therefore evaluation conditions, so it waited for a user decision. Fixed on 2026-10-29 after Phase 5 closed on v1: the call now returns `invalid_evidence` with that reason and a re-query hint (Phase 3 change log); the server build hash changes, descriptions do not.
 
 **Live dev run of D04/D05/D09 (user-run, `claude-sonnet-5-5`, N=1).** Descriptions `a2b8d595…` and policy `d4b1114f…` match the current hashes above.
 
@@ -662,7 +662,7 @@ Phase 2에서 구현한 `checkScenarios()`로 평가 전 동결 상태를 검사
 | 제안 유지(보통) | `심각도 확인: 보통 · 수정 없음`, 이슈가 medium으로 등록, 감사 기록 Q-0004 `actor: human`, `edits: {"severity":"medium"}` |
 | 제안 변경(보통 → 높음, 새 초안·새 제목) | `수정: 심각도 보통 → 높음`, 이슈가 high로 등록, 감사 기록 Q-0006 `human_changes` medium → high |
 
-`relatedDate`(2026-09-04)가 근거 날짜와 다른 `preview_issue` 호출은 라인·날짜 형식을 확인하라는 일반 `invalid_input` 안내로 거절됐다(Q-0002). core의 구체적인 이유("조회 근거의 라인과 생산일을 확인해 주세요")는 `src/core/audit.ts`의 `failure()`가 모든 `RangeError`를 이 안내로 바꾸면서 사라진다. 바꾸면 서버 응답이 달라져 평가 조건에 영향을 주므로 사용자 결정을 기다린다.
+`relatedDate`(2026-09-04)가 근거 날짜와 다른 `preview_issue` 호출은 라인·날짜 형식을 확인하라는 일반 `invalid_input` 안내로 거절됐다(Q-0002). core의 구체적인 이유("조회 근거의 라인과 생산일을 확인해 주세요")는 `src/core/audit.ts`의 `failure()`가 모든 `RangeError`를 이 안내로 바꾸면서 사라진다. 바꾸면 서버 응답이 달라져 평가 조건에 영향을 주므로 사용자 결정을 기다렸다. Phase 5를 v1으로 마감한 뒤 2026-10-29에 고쳤다. 이제 이 호출은 `invalid_evidence`, 그 이유, 재조회 안내를 돌려준다(Phase 3 변경 이력). 서버 빌드 해시는 바뀌고 설명 해시는 그대로다.
 
 **D04·D05·D09 실제 개발용 실행 (사용자 실행, `claude-sonnet-5-5`, N=1).** 설명 `a2b8d595…`, 정책 `d4b1114f…`가 위의 현재 해시와 같다.
 

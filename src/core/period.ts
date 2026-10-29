@@ -3,7 +3,7 @@ import type { CalendarDay } from '../shared/types.js';
 import { addDays, datesBetween, mondayOf, productionDateOf } from '../shared/time.js';
 import type { Clocks } from './clock.js';
 import type { ReadDb } from './db.js';
-import { dateSchema } from './guards.js';
+import { dateSchema, InputError } from './guards.js';
 
 const count = z.number().int().min(1).max(3660);
 export const periodSchema = z.discriminatedUnion('kind', [
@@ -32,7 +32,7 @@ export function shiftMonths(date: string, amount: number): string {
   const year = Number(date.slice(0, 4)), month = Number(date.slice(5, 7));
   const index = year * 12 + month - 1 + amount;
   const y = Math.floor(index / 12), m = index % 12 + 1;
-  if (y < 1 || y > 9999) throw new RangeError('지원하는 날짜 범위를 벗어났습니다.');
+  if (y < 1 || y > 9999) throw new InputError('지원하는 날짜 범위를 벗어났습니다.');
   const start = String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-01';
   const last = m === 12 ? String(y + 1).padStart(4, '0') + '-01-01' : String(y).padStart(4, '0') + '-' + String(m + 1).padStart(2, '0') + '-01';
   const days = Number(addDays(last, -1).slice(8, 10));
