@@ -50,7 +50,7 @@ User asks in Claude Desktop ("Why is Line 4 below target?")
             → Issue request: Claude creates a draft only → confirmation form → human confirms → audit log
 ```
 
-The last step works in MCP Inspector: the form's button calls the human-only `confirm_issue`, which registers one issue and writes a human audit entry. The Claude Desktop check is next (Phase 7).
+The last step works in MCP Inspector: the form's button calls the human-only `confirm_issue`, which registers one issue and writes a human audit entry. The Claude Desktop check of the form is still pending (Phase 7).
 
 ## Technology Stack
 
@@ -89,25 +89,27 @@ Claude interprets; it does not calculate. Every number in an answer comes from a
 
 ### Safety by structure, not by prompt
 
-- **Issue registration:** Claude can only create a draft. The confirm tool is not in Claude's tool list; the server accepts a confirmation only with a one-time draft ID (10-minute expiry, single use).
+- **Issue registration:** Claude can only create a draft. The confirm tool is not in Claude's tool list; the server accepts a confirmation only with a one-time draft ID (10-minute expiry, single use). The draft's severity is only a proposal; the person picks the final severity in the form.
 - **Free-text memos:** memo fields are wrapped as reference data so instructions hidden in them are not followed. Even if Claude is fooled, the result stops at a draft.
 - **Worker data:** worker IDs are never returned, so per-worker rankings cannot be produced. Aggregation stops at line and shift crew.
 - **Roles:** viewer/operator is set only in the server launch settings; no tool input can change it.
 
 ### Failure handling
 
-Errors tell Claude what went wrong and what is possible, so it can recover. Example: "October production days have not started yet. Available range: 7/1–9/30. Use September?"
+Errors tell Claude what went wrong and what is possible, so it can recover. Example: "October production days have not started yet. Available range: 7/1–9/30. Use September?" An issue draft whose line or date is not covered by the cited query is refused with that reason and a hint to query that line and date first, rather than a generic format error.
 
 ### How AI behavior is verified
 
 - 30 frozen eval scenarios across 8 types (simple lookup, multi-step analysis, recurring pattern, ambiguous question, missing data and traps, out-of-permission request, change request, attack attempt), plus 10 dev scenarios used only for tuning tool descriptions
 - Grading against an answer key computed from the planted events, independent of the server's calculation code, followed by human review of every record
-- Two tool sets compared on `claude-sonnet-5-5`, N=1, all 60 records human-reviewed. Both run the same calculations and return the same results; only the tools Claude sees differ. **coarse** (default) groups related functions into 4 tools selected by `mode`; **fine** gives each function its own tool, 10 in total. A score gap therefore reflects tool design, not calculation. Tool map: [Phase 4](Phase/Phase4_McpServer.md#tool-sets-coarse-vs-fine).
+- Two tool sets compared on `claude-sonnet-5-5`, N=1, all 60 records human-reviewed. Both run the same calculations and return the same results; only the tools Claude sees differ. **coarse** (default) groups related functions into 4 tools selected by `mode`; **fine** gives each function its own tool, 10 in total. A score gap is therefore not a calculation difference; with N=1 it cannot yet be separated from run-to-run variation. Tool map: [Phase 4](Phase/Phase4_McpServer.md#tool-sets-coarse-vs-fine).
 
-| Tool set | Final accuracy | Avg. tool calls | Avg. time (s) |
+| Tool set | Final accuracy (human-reviewed) | Avg. tool calls | Avg. time (s) |
 |---|---:|---:|---:|
 | coarse (default) | 28/30 (93.3%) | 1.60 | 9.88 |
 | fine | 26/30 (86.7%) | 1.97 | 10.32 |
+
+These are the v1 results (runs 2026-10-23, review 2026-10-26) and the final Phase 5 result. Later server improvements are not reflected in them; see [Limitations](#limitations).
 
 Every step can be replayed at [soyeonahn3.github.io/shopfloor-mcp](https://soyeonahn3.github.io/shopfloor-mcp/). Conditions, per-type results and limits: [docs/EVALUATION.md](docs/EVALUATION.md).
 
@@ -130,7 +132,7 @@ npm run validate
 npm run check
 ```
 
-`generate` writes `production.db`, `answer_key.json`, `validation.json` and a config snapshot to `data/` (git-ignored). Existing generation files are never overwritten; use `npm run generate -- --out-dir <new-dir>` for another bundle. `check` runs type checking, all tests and the build.
+`generate` writes `production.db`, `answer_key.json`, `validation.json` and a config snapshot to `data/` (git-ignored). Existing generation files are never overwritten; use `npm run generate -- --out-dir <new-dir>` for another bundle. `check` runs type checking, all tests, the build and the replay-page data check.
 
 On Windows without C++ build tools, `npm ci` fails with `gyp ERR! find VS`; use `npm ci --ignore-scripts` instead. Step-by-step setup with expected results: [docs/INSTALL.md](docs/INSTALL.md).
 
@@ -228,9 +230,9 @@ shopfloor-mcp/
 | Phase 2 — Evaluation scenarios | ✅ Done | 30 frozen eval + 10 dev scenarios with a dataset-bound lock |
 | Phase 3 — Core server logic | ✅ Done | Period resolution, six data states, metrics/analysis, audited API, guarded draft/confirm |
 | Phase 4 — MCP server | ✅ Done | 4 default / 10 fine tools, 4 resources, 2 prompts over stdio |
-| Phase 5 — Evaluation | ✅ Done | Live eval runner and human-reviewed Sonnet results (93.3% / 86.7%) |
+| Phase 5 — Evaluation | ✅ Closed on v1 | Live eval runner and human-reviewed Sonnet results (93.3% / 86.7%); a same-set v2 rerun was dropped |
 | Phase 6 — Result replay page | ✅ Done | Static bilingual replay page published on GitHub Pages |
-| Phase 7 — Confirmation screen & demo | 🔧 In Progress | Issue confirmation form and app-only `confirm_issue` via MCP Apps (checked in MCP Inspector); Claude Desktop check next |
+| Phase 7 — Confirmation screen & demo | 🔧 In Progress | Issue confirmation form and app-only `confirm_issue` via MCP Apps (checked in MCP Inspector), demo video, install and evaluation guides; only the Claude Desktop check remains |
 
 Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Desktop acceptance of the Phase 4 tools and the Phase 7 form is still a manual check.
 
@@ -253,7 +255,8 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 ## Limitations
 
 - Evaluation is N=1, so run-to-run variance is not measured. Automatic checks are provisional; final accuracy comes from human review.
-- Phase 5 is closed on v1 (2026-10-29): the published accuracy is the v1 result and does not measure later changes. Follow-ups #1–#4 (metric descriptions, availability policy, Korean downtime labels, human selection of final issue severity) were checked on dev scenarios only; #7 (value grading) and #9 (prompt caching) are implemented. The v2 reevaluation was dropped because the follow-ups were chosen from the eval set's own failures; #5/#6 (asking for an ambiguous criterion, standard advice when data is missing) are not implemented. The current descriptions/policy are not frozen, so a new eval run needs dev runs and a refreeze first.
+- The published accuracy is the v1 evaluation. Improvements made after human review (hourly-metric descriptions, checking related tools before saying a metric is unavailable, Korean downtime labels, human choice of final severity) were checked on dev scenarios only and are not in the score. They were chosen from the eval set's own failures, so rerunning the same 30 questions would overstate their effect; a fair measure needs a new, unseen question set. Two review findings are not addressed: asking what an ambiguous word like "problem" means, and fixed advice when data is missing.
+- The current tool descriptions and policy are not frozen, so a new eval run needs full dev runs and a refreeze first.
 - The confirmation form is checked in MCP Inspector only; Claude Desktop acceptance is pending. The server cannot see who pressed the button: the guarantee rests on app-only visibility in the host, no registration for clients without MCP Apps, and one-time draft IDs.
 - Synthetic data only; no connection to real plant systems. Simplified compared to real MES data: one product per line, no production orders, no equipment-level records, no public holidays.
 - Production quantities are hourly totals; the validator checks capacity but cannot prove the minute each unit was produced.
@@ -262,12 +265,18 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 
 ## Future Plans
 
-**Phase 7 (next)**
+**Phase 7 (remaining)**
 - Claude Desktop check of the form and of `confirm_issue`'s absence from Claude's tool list
 
-**Evaluation (after development, conditional)**
-- Build a new, unseen eval scenario set before any further evaluation, so improvements are not measured on the questions they were chosen from (see the closing decision in `Phase/Phase5_Evaluation.md`)
+**Separate tests after development**
+- Paste-in comparison: ask the same questions with the data pasted into the prompt instead of MCP, to measure when an MCP server is worth it (scenarios that need registration are recorded as not possible)
+- A new, unseen eval scenario set before any further evaluation, so improvements are not measured on the questions they were chosen from (see the closing decision in `Phase/Phase5_Evaluation.md`)
 - On that set, compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain
+
+**Beyond the MVP (ideas, not planned)**
+- More in-chat screens: loss-breakdown chart, evidence panel
+- Target forecast, linking recurring issues, shift-handover template, AI activity log view
+- A second MCP server for internal regulations (RAG), combined with production data
 
 ---
 <p align="center">Made with AI-assisted development</p>
