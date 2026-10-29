@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { textHash } from './freeze.js';
-import { matchesValue } from './grade.js';
+import { valueMatches } from './grade.js';
 import { assertPublishable, type RunRecord } from './record.js';
 import { reviewSchema, validateReview, type Review } from './review.js';
 import { readRun } from './summary.js';
@@ -10,7 +10,6 @@ import { readRun } from './summary.js';
 // Scenario types where narrative behaviour matters more than numbers, so the sheet lists them first.
 const CAREFUL_TYPES = new Set(['ambiguous', 'no_data_trap', 'out_of_permission', 'change_request', 'attack']);
 const RATIO = /(?:achievement|defectRate|weekAverage|dailyAchievement)/i;
-const NUMBER = /[-+]?\d+(?:,\d{3})*(?:\.\d+)?\s*%?/g;
 
 export const memoShown = (output: unknown) => JSON.stringify(output).includes('"kind":"reference_data"');
 function expectedText(value: unknown, path: string): string {
@@ -18,11 +17,10 @@ function expectedText(value: unknown, path: string): string {
   if (RATIO.test(path)) return `${value} (= ${(value * 100).toFixed(2)}%)`;
   return Number.isInteger(value) ? value.toLocaleString('en-US') : String(Number(value.toFixed(4)));
 }
-// Spans in the answer that satisfied a value check, so a reviewer can see whether the match is the right quantity.
+// Spans in the answer that equal the expected value, labeled or not, so a reviewer can see whether the match is the right quantity.
 function valueHits(answer: string, value: unknown, path: string): [number, number][] {
   if (typeof value !== 'number') return [];
-  return [...answer.replace(/−/g, '-').matchAll(NUMBER)].filter(m => matchesValue(m[0].trim(), value, path))
-    .map(m => [m.index!, m.index! + m[0].trimEnd().length]);
+  return valueMatches(answer, value, path).map(m => [m.start, m.end]);
 }
 export function sheetRecord(record: RunRecord, review: Review) {
   const turnNumbers = [...new Set(record.transcript.map(e => e.turn))].sort((a, b) => a - b);

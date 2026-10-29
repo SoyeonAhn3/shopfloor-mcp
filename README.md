@@ -174,7 +174,7 @@ The confirmation form can be viewed in MCP Inspector without Claude Desktop; see
 ## Testing
 
 ```sh
-npm run check                 # typecheck + 224 tests in 22 files + build
+npm run check                 # typecheck + 234 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -195,7 +195,7 @@ shopfloor-mcp/
 │   ├── core/              # Periods, metrics, analysis, audit, guarded issue drafts
 │   ├── server/            # MCP tools (coarse/fine), resources, prompts, stdio, MCP Apps form (ui/)
 │   └── eval/              # Eval runner, grading, freeze checks, human review
-├── tests/                 # 224 tests in 22 files
+├── tests/                 # 234 tests in 22 files
 ├── eval/
 │   ├── scenarios/         # 30 eval + 10 dev scenarios, lock, question catalogue
 │   ├── runs/              # Recorded eval runs
@@ -208,7 +208,7 @@ shopfloor-mcp/
 ├── docs/INSTALL.md        # Step-by-step installation (verified on a clean clone)
 ├── docs/EVALUATION.md     # Evaluation report
 ├── docs/MCP_SETUP.md      # Client connection guide
-├── plan/                  # Project plan and dataset design
+├── plan/                  # Project plan, dataset design, and work plans
 ├── Phase/                 # Per-phase design and implementation records
 ├── .github/workflows/     # Replay page check and GitHub Pages deployment
 ├── .claude/               # Claude Code skills and guard hooks
@@ -240,6 +240,7 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 |---|---|
 | [plan/01_production-mcp-server.md](plan/01_production-mcp-server.md) | Project plan: problem, tools, issue confirmation principle, evaluation, scope, decisions (Korean) |
 | [plan/01a_production-mcp-dataset.md](plan/01a_production-mcp-dataset.md) | Dataset design: tables, planted events E1–E9, answer key, validation rules (Korean) |
+| [plan/02_phase5-grader-server-version.md](plan/02_phase5-grader-server-version.md) | Phase 5 follow-up plan: value-check labels (#7) and server build identification (Korean) |
 | [Phase/](Phase/) | Per-phase design decisions, implementation and checks (English and Korean) |
 | [docs/INSTALL.md](docs/INSTALL.md) | Clone → install → generate → check → runtime copy → Claude Desktop, with expected results |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Evaluation conditions, results by type, failures, tuning log, limits |
@@ -266,9 +267,9 @@ Phases 1–6 are development stage 1 (text-only); Phase 7 is stage 2. Claude Des
 
 **Evaluation follow-up**
 - Work through the ten follow-up items in `Phase/Phase5_Evaluation.md`:
-  - Fix the grader's value check and regrade the v1 records (prompt caching is done)
+  - Regrade the v1 records with the new grader (the value-check fix and prompt caching are done)
   - Re-run the preserved v1 server source in a separate checkout with `--repeat 3` on both tool sets as a baseline; the current source already includes #1–#4
-  - Verify #1–#4 and apply the remaining candidates through dev scenarios, identify server versions, re-freeze changed descriptions/policy and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
+  - Verify #1–#4 and apply the remaining candidates through dev scenarios (records now identify the server build), re-freeze changed descriptions/policy and run v2 with `--repeat 3`; compare per-scenario pass counts (k/3)
 - Compare with `claude-opus-5-5` on the coarse tools only if failures that look like model judgement remain (deferred)
 
 ---

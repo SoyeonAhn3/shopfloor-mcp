@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { copyRuntimeDatabase } from '../server/runtime-db.js';
 import { removeOwnedTemp } from '../shared/files.js';
 import { CostBudget, createClaude, EvalError, safeError, type ModelClient, type Tool } from './claude.js';
-import { descriptionsHash, EVAL_POLICY, loadLocalEnv, parseRunConfig, policyHash, PROJECT_ROOT, REFERENCE_URIS, type RunConfig } from './config.js';
+import { descriptionsHash, EVAL_POLICY, loadLocalEnv, parseRunConfig, policyHash, PROJECT_ROOT, REFERENCE_URIS, serverBuildHash, type RunConfig } from './config.js';
 import { diff, snapshot } from './dbdiff.js';
 import { checkScenarios, readDataset, readLock, textHash } from './freeze.js';
 import { grade } from './grade.js';
@@ -20,7 +20,7 @@ import { loadScenarios, type Scenario } from './scenario.js';
 export interface ScenarioRunOptions {
   runId: string; repetition: number; scenario: Scenario; config: RunConfig; sourceDb: string;
   modelClient: ModelClient; budget: CostBudget; key: unknown;
-  identity: Pick<RunRecord, 'scenarioSetHash' | 'frozenEvalHash' | 'descriptionsHash' | 'answerKeyHash' | 'datasetVersion'>;
+  identity: Pick<RunRecord, 'scenarioSetHash' | 'frozenEvalHash' | 'descriptionsHash' | 'answerKeyHash' | 'datasetVersion' | 'serverBuildHash'>;
   serverEntry?: string; serverPrefix?: string[];
 }
 export async function runScenario(o: ScenarioRunOptions): Promise<{ record: RunRecord; fatal: boolean }> {
@@ -118,7 +118,7 @@ export async function runBatch(config: RunConfig, modelClient: ModelClient, root
   const all = loadScenarios(scenariosDirectory, config.set);
   const selected = all.filter(s => !config.ids || config.ids.includes(s.id));
   if (!selected.length || (config.ids && selected.length !== config.ids.length)) throw new Error('Requested scenario IDs do not belong to this set');
-  const descHash = descriptionsHash(), promptHash = policyHash();
+  const descHash = descriptionsHash(), promptHash = policyHash(), buildHash = serverBuildHash();
   if (config.set === 'eval') verifyDescriptionFreeze(root, config.model, descHash, promptHash);
   const { key, answerKeySha256 } = readDataset(datasetDirectory);
   const scenarioSetHash = config.set === 'eval' ? lock.setHash : textHash(JSON.stringify(all));
@@ -133,10 +133,12 @@ export async function runBatch(config: RunConfig, modelClient: ModelClient, root
   const budget = new CostBudget(config.limits.maxCostUsd, config.pricing);
   try {
     outer: for (let repetition = 1; repetition <= config.repeat; repetition++) for (const scenario of selected) {
-      if (descriptionsHash() !== descHash || policyHash() !== promptHash) throw new Error('Evaluation conditions changed during the run');
+      if (descriptionsHash() !== descHash || policyHash() !== promptHash || serverBuildHash() !== buildHash) {
+        throw new Error('Evaluation conditions changed during the run');
+      }
       const { record, fatal } = await runScenario({ runId, repetition, scenario, config, sourceDb: join(datasetDirectory, 'production.db'),
         modelClient, budget, key, identity: { scenarioSetHash, frozenEvalHash: lock.setHash, descriptionsHash: descHash,
-          answerKeyHash: answerKeySha256, datasetVersion: lock.datasetVersion } });
+          answerKeyHash: answerKeySha256, datasetVersion: lock.datasetVersion, serverBuildHash: buildHash } });
       const filename = scenario.id + '-r' + repetition + '.json';
       writeRecord(join(directory, filename), record); manifest.recordFiles.push(filename);
       manifest.estimatedCostUsd = budget.spent; saveManifest();

@@ -27,7 +27,7 @@ export function stub(replies: ModelReply[] | ((request: ModelRequest, index: num
   return { model, requests };
 }
 export const scenario = (overrides: Partial<Scenario> = {}): Scenario => ({ id: 'D01', set: 'dev', type: 'simple_lookup', role: 'viewer',
-  turns: ['생산량을 알려줘'], expect: { answerKeyRefs: ['count'], issuesUnchanged: true }, reviewCriteria: ['수량과 단위를 확인'], ...overrides });
+  turns: ['생산량을 알려줘'], expect: { answerKeyRefs: ['produced'], issuesUnchanged: true }, reviewCriteria: ['수량과 단위를 확인'], ...overrides });
 export function record(overrides: Partial<RunRecord> = {}): RunRecord {
   const hash = textHash('test');
   return { schemaVersion: 1, runId: 'test-run', scenarioId: 'D01', set: 'dev', type: 'simple_lookup', role: 'viewer', repetition: 1,

@@ -174,7 +174,7 @@ npm run mcp:demo -- --db data/production.db
 ## 테스트
 
 ```sh
-npm run check                 # typecheck + 224 tests in 22 files + build
+npm run check                 # typecheck + 234 tests in 22 files + build
 npm test                      # tests only
 npx vitest run tests/server   # one area: answer-key, core, eval, generator, server, shared, site, validator
 ```
@@ -195,7 +195,7 @@ shopfloor-mcp/
 │   ├── core/              # 기간, 집계, 분석, 감사 기록, 이슈 초안 보호
 │   ├── server/            # MCP 도구(coarse/fine), 리소스, 프롬프트, stdio, MCP Apps 폼(ui/)
 │   └── eval/              # 평가 실행기, 채점, 동결 검사, 사람 검수
-├── tests/                 # 파일 22개, 테스트 224개
+├── tests/                 # 파일 22개, 테스트 234개
 ├── eval/
 │   ├── scenarios/         # 평가용 30개·개발용 10개 시나리오, 잠금, 질문 목록
 │   ├── runs/              # 평가 실행 기록
@@ -208,7 +208,7 @@ shopfloor-mcp/
 ├── docs/INSTALL.md        # 단계별 설치 안내 (새 클론에서 확인)
 ├── docs/EVALUATION.md     # 평가 결과
 ├── docs/MCP_SETUP.md      # 클라이언트 연결 안내
-├── plan/                  # 기획서와 데이터셋 설계서
+├── plan/                  # 기획서, 데이터셋 설계서, 작업 계획
 ├── Phase/                 # Phase별 설계와 구현 기록
 ├── .github/workflows/     # 재생 페이지 검사와 GitHub Pages 배포
 ├── .claude/               # Claude Code 스킬과 보호 hook
@@ -240,6 +240,7 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 |---|---|
 | [plan/01_production-mcp-server.md](plan/01_production-mcp-server.md) | 기획서: 문제, 도구, 이슈 확정 원칙, 평가, 범위, 결정 사항 (한국어) |
 | [plan/01a_production-mcp-dataset.md](plan/01a_production-mcp-dataset.md) | 데이터셋 설계서: 테이블, 정답 사건 E1~E9, 정답표, 검증 규칙 (한국어) |
+| [plan/02_phase5-grader-server-version.md](plan/02_phase5-grader-server-version.md) | Phase 5 후속 계획: 값 검사 항목명 확인(7번)과 서버 빌드 식별 (한국어) |
 | [Phase/](Phase/) | Phase별 설계 결정, 구현 내용, 완료 검사 (영어·한국어) |
 | [docs/INSTALL.md](docs/INSTALL.md) | 저장소 받기 → 설치 → 데이터 생성 → 검사 → 실행용 복사본 → Claude 데스크톱, 단계별 정상 결과 포함 |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | 평가 조건, 유형별 결과, 실패 내용, 도구 설명 조정 기록, 한계 |
@@ -266,9 +267,9 @@ Phase 1~6은 개발 1단계(텍스트), Phase 7은 2단계입니다. Phase 4 도
 
 **평가 후속**
 - `Phase/Phase5_Evaluation.md`의 후속 항목 10개 진행:
-  - 채점기 값 검사를 고친 뒤 v1 기록 재채점 (프롬프트 캐싱은 완료)
+  - 새 채점기로 v1 기록 재채점 (값 검사 수정과 프롬프트 캐싱은 완료)
   - 보존한 v1 서버 소스를 별도 체크아웃해 두 도구 구성에서 `--repeat 3`으로 기준점 확보. 현재 소스에는 이미 1~4번 반영
-  - 개발용 시나리오로 1~4번을 검증하고 나머지 개선 후보를 반영한 뒤 서버 버전을 식별하고, 변경한 도구 설명·정책을 다시 동결해 v2를 `--repeat 3`으로 실행. 시나리오별 통과 횟수(k/3) 비교
+  - 개발용 시나리오로 1~4번을 검증하고 나머지 개선 후보를 반영한 뒤(실행 기록이 서버 빌드를 식별함), 변경한 도구 설명·정책을 다시 동결해 v2를 `--repeat 3`으로 실행. 시나리오별 통과 횟수(k/3) 비교
 - 모델 판단력 문제로 보이는 실패가 남을 때만 coarse 도구로 `claude-opus-5-5` 비교 (연기)
 
 ---

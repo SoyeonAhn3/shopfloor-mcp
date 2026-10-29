@@ -61,7 +61,8 @@ export function buildSummary(root: string) {
     if (a.set !== 'eval' || b.set !== 'eval' || a.selectedIds.length !== 30 || b.selectedIds.length !== 30
       || a.status !== 'completed' || b.status !== 'completed' || fine.records.length !== 30 * a.repeat || coarse.records.length !== 30 * b.repeat) continue;
     const same = ['model', 'scenarioSetHash', 'datasetVersion', 'descriptionsHash', 'policyHash', 'repeat'].every(k => a[k as keyof typeof a] === b[k as keyof typeof b]);
-    const conditions = (r: RunRecord) => JSON.stringify({ limits: r.limits, pricing: r.pricing, graderHash: r.graderHash });
+    const conditions = (r: RunRecord) => JSON.stringify({ limits: r.limits, pricing: r.pricing, graderHash: r.graderHash,
+      serverBuildHash: r.serverBuildHash ?? null });
     if (!same || new Set([...fine.records, ...coarse.records].map(conditions)).size !== 1) continue;
     comparisons.push({ fineRun: a.runId, coarseRun: b.runId, conditionsMatch: true,
       humanReviewComplete: [...fine.records, ...coarse.records].every(r => {

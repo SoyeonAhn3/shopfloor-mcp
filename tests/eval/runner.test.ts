@@ -1,13 +1,15 @@
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CostBudget } from '../../src/eval/claude.js';
-import { parseRunConfig } from '../../src/eval/config.js';
+import { parseRunConfig, serverBuildHash } from '../../src/eval/config.js';
 import { textHash } from '../../src/eval/freeze.js';
 import { runScenario, verifyDescriptionFreeze } from '../../src/eval/runner.js';
 import { loadScenarios } from '../../src/eval/scenario.js';
 import { METRIC_LOOKUP_HELP } from '../../src/server/descriptions.js';
+import { removeOwnedTemp } from '../../src/shared/files.js';
 import { fixture, generatedHash } from '../core/fixture.js';
 import { call, MODEL, reply, scenario, stub, text } from './helpers.js';
 
@@ -83,6 +85,20 @@ describe('scenario runner using a real stdio MCP server and stub model', () => {
   });
   it('refuses eval execution without a description freeze', () => {
     expect(() => verifyDescriptionFreeze(f.root, MODEL, textHash('desc'), textHash('prompt'))).toThrow('dev scenarios');
+  });
+  it('identifies the built server by every file it runs and ignores other build output', () => {
+    const dist = mkdtempSync(join(tmpdir(), 'shopfloor-dist-test-'));
+    const put = (path: string, content: string) => { mkdirSync(dirname(join(dist, path)), { recursive: true }); writeFileSync(join(dist, path), content); };
+    try {
+      for (const part of ['core', 'shared', 'resources']) put(part + '/a.js', part);
+      put('server/index.js', 'server'); put('server/ui/page.html', 'a\nb');
+      const base = serverBuildHash(dist);
+      put('eval/runner.js', 'other'); put('server/ui/page.html', 'a\r\nb');
+      put('server/index.js.map', 'map'); put('server/index.d.ts', 'types');
+      expect(serverBuildHash(dist)).toBe(base);
+      put('server/ui/page.html', 'changed');
+      expect(serverBuildHash(dist)).not.toBe(base);
+    } finally { removeOwnedTemp(dist); }
   });
   it('requires known or explicitly provided model prices and positive execution limits', () => {
     expect(() => parseRunConfig(['--model', 'unknown-model'])).toThrow();

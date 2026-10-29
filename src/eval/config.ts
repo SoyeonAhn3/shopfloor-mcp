@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
@@ -21,6 +21,16 @@ export const REFERENCE_URIS = ['shopfloor://lines', 'shopfloor://glossary', 'sho
 export const policyHash = () => textHash(JSON.stringify({ policy: EVAL_POLICY, resources: REFERENCE_URIS,
   documents: ['glossary', 'anomaly-criteria', 'data-guide'].map(name => readFileSync(resolve(PROJECT_ROOT, 'resources', name + '.md'), 'utf8').replace(/\r\n/g, '\n')) }));
 export const descriptionsHash = () => textHash(readFileSync(resolve(PROJECT_ROOT, 'src/server/descriptions.ts'), 'utf8'));
+// The built files that run (dist/server/index.js reads dist/resources), so a stale build cannot be labeled as current source.
+// Type declarations and source maps do not run, so a type-only edit keeps the same build identity.
+export function serverBuildHash(dist = resolve(PROJECT_ROOT, 'dist')): string {
+  const files: [string, string][] = [];
+  for (const part of ['core', 'server', 'shared', 'resources']) for (const name of readdirSync(join(dist, part), { recursive: true, encoding: 'utf8' })) {
+    const path = join(dist, part, name);
+    if (!/\.(?:d\.ts|map)$/.test(name) && statSync(path).isFile()) files.push([part + '/' + name.replace(/\\/g, '/'), textHash(readFileSync(path, 'utf8'))]);
+  }
+  return textHash(JSON.stringify(files.sort(([a], [b]) => a < b ? -1 : 1)));
+}
 export function loadLocalEnv(): void {
   const path = resolve(PROJECT_ROOT, '.env');
   if (existsSync(path)) process.loadEnvFile(path);

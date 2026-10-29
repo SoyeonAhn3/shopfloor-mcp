@@ -26,10 +26,10 @@ function stored(root: string, r: RunRecord) {
 function fixture() {
   const root = temporary();
   const coarse = record({ runId: 'run-coarse', transcript: [{ kind: 'user', turn: 1, text: '정지 횟수 알려줘' },
-    { kind: 'assistant', turn: 1, text: '9/14~9/18 기간 정지는 16회입니다. </script><b>x</b>', final: true }] });
-  coarse.grade = grade(coarse, scenario(), { count: 14 });
+    { kind: 'assistant', turn: 1, text: '9/14~9/18 기간 A조 정지는 14회, B조는 16회입니다. </script><b>x</b>', final: true }] });
+  coarse.grade = grade(coarse, scenario({ expect: { answerKeyRefs: ['downtimeCount'], issuesUnchanged: true } }), { downtimeCount: 14 });
   const fine = record({ runId: 'run-fine', toolset: 'fine' });
-  fine.grade = grade(fine, scenario(), { count: 123 });
+  fine.grade = grade(fine, scenario(), { produced: 123 });
   return { root, coarse: stored(root, coarse), fine: stored(root, fine) };
 }
 const completed = (r: RunRecord, verdict: 'pass' | 'fail') => {
@@ -46,10 +46,11 @@ describe('review sheet', () => {
     expect(sheet.scenarios).toHaveLength(1);
     const [scenarioView] = sheet.scenarios;
     expect(scenarioView!.records.map(r => r.toolset)).toEqual(['coarse', 'fine']);
-    const coarse = scenarioView!.records[0]!, value = coarse.checks.find(c => c.id === 'final:value:count')!;
-    // The "14" inside the date range satisfies the automatic check; the sheet exposes that span to the reviewer.
+    const coarse = scenarioView!.records[0]!, value = coarse.checks.find(c => c.id === 'final:value:downtimeCount')!;
+    // The labeled count passes the check; the "14" inside the date is highlighted too, so the reviewer sees every candidate.
+    const answer = coarse.turns[0]!.answer, inDate = answer.indexOf('14'), count = answer.indexOf('14회');
     expect(value.status).toBe('pass');
-    expect(value.hits.map(([s, e]) => coarse.turns[0]!.answer.slice(s, e))).toEqual(['14']);
+    expect(value.hits).toEqual([[inDate, inDate + 2], [count, count + 2]]);
     expect(coarse.memoTurn).toBeNull();
   });
   it('embeds transcript text without letting it close the data script', () => {
@@ -77,8 +78,8 @@ describe('applying review decisions', () => {
   });
   it('requires a reason to override an automatic failure', () => {
     const root = temporary(), r = record({ runId: 'run-failed' });
-    r.grade = grade(r, scenario(), { count: 999 }); stored(root, r);
-    expect(r.grade.checks.find(c => c.id === 'final:value:count')?.status).toBe('fail');
+    r.grade = grade(r, scenario(), { produced: 999 }); stored(root, r);
+    expect(r.grade.checks.find(c => c.id === 'final:value:produced')?.status).toBe('fail');
     const silent = { ...completed(r, 'pass'), checks: completed(r, 'pass').checks.map(c => ({ ...c, note: '' })) };
     expect(() => applyDecisions(root, decisions([silent]))).toThrow('explanation');
     expect(applyDecisions(root, decisions([completed(r, 'pass')])).written).toBe(1);

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { diff, snapshot } from '../../src/eval/dbdiff.js';
+import { textHash } from '../../src/eval/freeze.js';
 import { grade } from '../../src/eval/grade.js';
 import { recordSchema, serializeRecord } from '../../src/eval/record.js';
 import { prepareReview, reviewTemplate, validateReview } from '../../src/eval/review.js';
@@ -15,6 +16,17 @@ import { record, scenario } from './helpers.js';
 let roots: string[] = [];
 const temporary = () => { const p = mkdtempSync(join(tmpdir(), 'shopfloor-eval-test-')); roots.push(p); return p; };
 afterEach(() => { roots.forEach(removeOwnedTemp); roots = []; });
+function storeEvalRun(root: string, toolset: 'coarse' | 'fine', serverBuildHash: string) {
+  const runId = 'eval-' + toolset, directory = join(root, 'eval/runs', runId); mkdirSync(directory, { recursive: true });
+  const ids = Array.from({ length: 30 }, (_, i) => 'S' + String(i + 1).padStart(2, '0'));
+  const records = ids.map(id => record({ runId, scenarioId: id, set: 'eval', toolset, serverBuildHash }));
+  for (const r of records) writeFileSync(join(directory, r.scenarioId + '-r1.json'), serializeRecord(r));
+  const r = records[0]!;
+  writeFileSync(join(directory, 'manifest.json'), JSON.stringify({ schemaVersion: 1, runId, set: 'eval', toolset,
+    model: r.model, descriptionsHash: r.descriptionsHash, policyHash: r.policyHash, scenarioSetHash: r.scenarioSetHash,
+    frozenEvalHash: r.frozenEvalHash, datasetVersion: r.datasetVersion, selectedIds: ids, repeat: 1, recordFiles: ids.map(id => id + '-r1.json'),
+    status: 'completed', stopReason: null, startedAt: r.startedAt, finishedAt: r.finishedAt, estimatedCostUsd: 0 }));
+}
 describe('persistent evaluation evidence', () => {
   it('detects inserts, updates, and deletions separately', () => {
     const path = join(temporary(), 'test.db'), db = new Database(path);
@@ -25,7 +37,7 @@ describe('persistent evaluation evidence', () => {
     expect(changes).toMatchObject({ issues: { added: 1, updated: 1, deleted: 1 }, draftsCreated: 1, auditRows: 1 });
   });
   it('requires explicit completed human checks, a reviewer, and record binding', () => {
-    const r = record(); r.grade = grade(r, scenario(), { count: 123 });
+    const r = record(); r.grade = grade(r, scenario(), { produced: 123 });
     const review = reviewTemplate(r);
     expect(validateReview(r, review).verdict).toBe('pending');
     expect(() => validateReview(r, { ...review, verdict: 'pass' })).toThrow('reviewer');
@@ -36,7 +48,7 @@ describe('persistent evaluation evidence', () => {
     expect(() => validateReview(r, { ...filled, checks: [] })).toThrow('every check');
   });
   it('never overwrites an existing review and supplies readable answer-key evidence', () => {
-    const root = temporary(), r = record(); r.grade = grade(r, scenario(), { count: 123 });
+    const root = temporary(), r = record(); r.grade = grade(r, scenario(), { produced: 123 });
     prepareReview(root, r);
     const file = join(root, 'D01-r1.json');
     const review = JSON.parse(readFileSync(file, 'utf8')); review.note = 'human work in progress';
@@ -45,7 +57,7 @@ describe('persistent evaluation evidence', () => {
     expect(readFileSync(join(root, 'D01-r1.md'), 'utf8')).toContain('Expected: 123');
   });
   it('reports unreviewed automatic success without inventing final accuracy', () => {
-    const root = temporary(), r = record(); r.grade = grade(r, scenario(), { count: 123 });
+    const root = temporary(), r = record(); r.grade = grade(r, scenario(), { produced: 123 });
     const run = join(root, 'eval/runs/test-run'); mkdirSync(run, { recursive: true });
     writeFileSync(join(run, 'D01-r1.json'), serializeRecord(r));
     writeFileSync(join(run, 'manifest.json'), JSON.stringify({ schemaVersion: 1, runId: r.runId, set: r.set, toolset: r.toolset,
@@ -77,5 +89,17 @@ describe('persistent evaluation evidence', () => {
   it('validates record structure rather than accepting missing outcome/identity fields', () => {
     expect(recordSchema.safeParse({ ...record(), outcome: undefined }).success).toBe(false);
     expect(recordSchema.safeParse({ ...record(), scenarioSetHash: 'wrong' }).success).toBe(false);
+    expect(recordSchema.safeParse({ ...record(), serverBuildHash: 'wrong' }).success).toBe(false);
+  });
+  it('keeps records without a server build hash byte-identical so existing reviews stay bound', () => {
+    expect(serializeRecord(record())).not.toContain('serverBuildHash');
+  });
+  it('pairs full fine/coarse runs only when both ran the same server build', () => {
+    const same = temporary();
+    storeEvalRun(same, 'coarse', textHash('build-a')); storeEvalRun(same, 'fine', textHash('build-a'));
+    expect(buildSummary(same).comparisons).toMatchObject([{ fineRun: 'eval-fine', coarseRun: 'eval-coarse' }]);
+    const different = temporary();
+    storeEvalRun(different, 'coarse', textHash('build-a')); storeEvalRun(different, 'fine', textHash('build-b'));
+    expect(buildSummary(different).comparisons).toEqual([]);
   });
 });

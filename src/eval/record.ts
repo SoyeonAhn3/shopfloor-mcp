@@ -55,6 +55,8 @@ export const recordSchema = z.strictObject({
   scenarioSetHash: hash, frozenEvalHash: hash, descriptionsHash: hash, toolsHash: hash,
   systemPromptHash: hash, policyHash: hash, answerKeyHash: hash, datasetVersion: z.string(),
   graderHash: hash.nullable().default(null),
+  // Optional, not defaulted: a default would add the key to earlier records, change their recordHash and unbind their reviews.
+  serverBuildHash: hash.optional(),
   pricing: z.strictObject({ input: z.number().positive(), output: z.number().positive() }),
   startedAt: z.iso.datetime(), finishedAt: z.iso.datetime(), limits: limitsSchema,
   systemPrompt: z.string(), tools: z.array(z.unknown()),

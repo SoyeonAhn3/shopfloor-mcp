@@ -30,18 +30,18 @@ Thirty frozen questions, one run per tool set (N=1), all 60 records human-review
 | 한도 | 질문당 모델 호출 12회, 도구 호출 20회, 180초. 명령당 예상 비용 USD 5 |
 | 단가 | 입력 USD 2 / 출력 USD 10 (백만 토큰당). 프롬프트 캐싱 미사용 |
 
-두 실행은 모델, 질문, 데이터셋, 도구 설명·정책·채점기 해시, 반복 수, 한도와 단가가 같을 때만 비교합니다. 비교 조건은 [eval/summary.md](../eval/summary.md)가 확인합니다.
+두 실행은 모델, 질문, 데이터셋, 도구 설명·정책·채점기 해시, 서버 빌드 해시(2026-10-28 이후 기록), 반복 수, 한도와 단가가 같을 때만 비교합니다. 비교 조건은 [eval/summary.md](../eval/summary.md)가 확인합니다.
 
-The runner is the MCP client and starts the same built server Claude Desktop runs, with a fresh DB copy per question. Only the question turns reach the model; answer keys and expectations stay in the grader. Runs are compared only when model, questions, dataset, description/policy/grader hashes, repetitions, limits and prices all match.
+The runner is the MCP client and starts the same built server Claude Desktop runs, with a fresh DB copy per question. Only the question turns reach the model; answer keys and expectations stay in the grader. Runs are compared only when model, questions, dataset, description/policy/grader hashes, server build hash (records from 2026-10-28), repetitions, limits and prices all match.
 
 ## 3. 채점 방식 / Grading
 
 1. **자동 검사:** 서버 계산과 별개로 만든 정답표(심어 둔 사건 E1~E9 기준)의 값이 답에 있는지, 필수 용어, 되묻기, 금지 행동(도구 호출 + "등록했습니다" 같은 답변 문구), 이슈 표 변경 여부를 확인합니다.
 2. **사람 검수:** 모든 기록을 사람이 정답과 나란히 보고 최종 판정합니다. 자동 검사는 제안일 뿐이며, 자동 실패를 통과로 바꾸려면 검사별 이유가 필요합니다. 검수 파일은 원본 기록의 해시에 묶여 있어 기록이 바뀌면 거절됩니다.
 
-자동 검사만으로는 부족했습니다. 날짜 "9/14"가 기대값 14와 우연히 맞거나, "3개"가 2.92의 허용 오차 안에 들어 자동 통과한 경우를 사람이 실패로 바꿨습니다.
+자동 검사만으로는 부족했습니다. 날짜 "9/14"가 기대값 14와 우연히 맞거나, "3개"가 2.92의 허용 오차 안에 들어 자동 통과한 경우를 사람이 실패로 바꿨습니다. 2026-10-28부터 채점기는 날짜·시각·식별자 속 숫자로는 통과시키지 않고, 가장 가까운 항목명이 그 항목이 아닌 일치는 사람 확인으로 넘깁니다(후속 7번). 위 v1 결과는 사람 검수 판정 그대로입니다.
 
-Automatic checks compare answers with an answer key built independently of the server's calculations; a human then reviews every record, and the reviewed verdict is final. Review files are bound to record hashes. Automatic value checks were fooled twice by unrelated numbers (a date "9/14" for an expected 14; "3개" within tolerance of 2.92), which the human review caught.
+Automatic checks compare answers with an answer key built independently of the server's calculations; a human then reviews every record, and the reviewed verdict is final. Review files are bound to record hashes. Automatic value checks were fooled twice by unrelated numbers (a date "9/14" for an expected 14; "3개" within tolerance of 2.92), which the human review caught. From 2026-10-28 the grader never passes a number inside a date, time or identifier and sends a match whose nearest label is another quantity's to human review (follow-up #7); the v1 results above remain the human-reviewed verdicts.
 
 ## 4. 유형별 결과 / Results by type
 
